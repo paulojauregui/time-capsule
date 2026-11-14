@@ -1,16 +1,31 @@
-# src/time_capsule/weather_assets.py
-import os
+"""Weather assets and OpenWeatherMap telemetry ingestion.
+
+Pre-conditions:
+    - Configured APIResource containing valid OpenWeatherMap credentials or fallback mode.
+
+Post-conditions:
+    - Provides raw weather ingestion assets and normalized global city observations.
+"""
+
+from typing import Any
+
 import pandas as pd
 import requests
 from dagster import asset
-from typing import List, Dict, Any
 
-# Import the shared resource
-from .resources import APIResource
+from time_capsule.resources import APIResource
 
+# Re-export APIResource for backwards compatibility with tests
+__all__ = [
+    "APIResource",
+    "CITIES",
+    "fetch_weather_records",
+    "get_fallback_weather_records",
+    "raw_weather_data",
+]
 
 # A list of major world cities with their lat/lon coordinates
-CITIES = {
+CITIES: dict[str, tuple[float, float]] = {
     "Tokyo": (35.68, 139.69),
     "New York": (40.71, -74.00),
     "London": (51.50, -0.12),
@@ -18,51 +33,126 @@ CITIES = {
     "Sydney": (-33.86, 151.20),
 }
 
-@asset # This decorator registers the function as a Dagster asset
-def raw_weather_data(api: APIResource) -> pd.DataFrame:
-    """
-    Fetches the current weather for a predefined list of major world cities
-    from the OpenWeatherMap API and returns it as a pandas DataFrame.
-    """
 
-    # api_key = os.getenv("OPENWEATHERMAP_API_KEY")
-    api_key = api.openweathermap_api_key
+def get_fallback_weather_records() -> list[dict[str, Any]]:
+    """Return deterministic baseline weather records across canonical benchmark cities.
 
+    Pre-conditions:
+        - None.
+
+    Post-conditions:
+        - Returns a list of 5 standardized city weather telemetry dictionaries.
+    """
+    baseline_telemetry: dict[str, dict[str, Any]] = {
+        "Tokyo": {"temp": 16.5, "humidity": 55, "pressure": 1014, "weather_main": "Clear"},
+        "New York": {"temp": 12.0, "humidity": 60, "pressure": 1018, "weather_main": "Clouds"},
+        "London": {"temp": 10.2, "humidity": 78, "pressure": 1011, "weather_main": "Drizzle"},
+        "Beijing": {"temp": 8.5, "humidity": 40, "pressure": 1022, "weather_main": "Haze"},
+        "Sydney": {"temp": 22.0, "humidity": 65, "pressure": 1016, "weather_main": "Clear"},
+    }
+
+    now = pd.Timestamp.now(tz="UTC")
+    records: list[dict[str, Any]] = []
+
+    for city, (lat, lon) in CITIES.items():
+        base = baseline_telemetry.get(
+            city, {"temp": 15.0, "humidity": 50, "pressure": 1013, "weather_main": "Clear"}
+        )
+        records.append(
+            {
+                "city": city,
+                "lat": lat,
+                "lon": lon,
+                "timestamp": now,
+                "temp": base["temp"],
+                "feels_like": base["temp"] - 1.0,
+                "temp_min": base["temp"] - 2.0,
+                "temp_max": base["temp"] + 2.0,
+                "pressure": base["pressure"],
+                "humidity": base["humidity"],
+                "wind_speed": 4.5,
+                "wind_deg": 180,
+                "weather_main": base["weather_main"],
+                "weather_description": f"{base['weather_main'].lower()} sky",
+                "country": "FALLBACK",
+            }
+        )
+
+    return records
+
+
+def fetch_weather_records(
+    api_key: str | None = None, timeout: float = 10.0
+) -> list[dict[str, Any]]:
+    """Fetch live meteorological telemetry for canonical benchmark cities via OpenWeatherMap.
+
+    Pre-conditions:
+        - timeout must be greater than zero.
+
+    Post-conditions:
+        - Returns list of dictionary records if api_key is valid.
+        - Raises ValueError if api_key is None or empty.
+    """
     if not api_key:
         raise ValueError("OPENWEATHERMAP_API_KEY environment variable not set.")
 
-    processed_data: List[Dict[str, Any]] = []
+    processed_data: list[dict[str, Any]] = []
 
-    print("Fetching weather data for all cities...")
     for city, (lat, lon) in CITIES.items():
-        # The API endpoint for current weather data
-        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
-
-        response = requests.get(url)
-        response.raise_for_status()  # This will raise an error if the request failed
+        url = (
+            f"https://api.openweathermap.org/data/2.5/weather?"
+            f"lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        )
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
 
         data = response.json()
-        
-        # Instead of appending the whole JSON, pull out only the fields we want.
-        # Use .get() to safely access nested keys that might be missing.
-        processed_data.append({
-            "city": city,
-            "lat": data.get("coord", {}).get("lat"),
-            "lon": data.get("coord", {}).get("lon"),
-            "timestamp": pd.to_datetime(data.get("dt"), unit="s"),
-            "temp": data.get("main", {}).get("temp"),
-            "feels_like": data.get("main", {}).get("feels_like"),
-            "temp_min": data.get("main", {}).get("temp_min"),
-            "temp_max": data.get("main", {}).get("temp_max"),
-            "pressure": data.get("main", {}).get("pressure"),
-            "humidity": data.get("main", {}).get("humidity"),
-            "wind_speed": data.get("wind", {}).get("speed"),
-            "wind_deg": data.get("wind", {}).get("deg"),
-            "weather_main": data.get("weather", [{}])[0].get("main"),
-            "weather_description": data.get("weather", [{}])[0].get("description"),
-            "country": data.get("sys", {}).get("country"),
-        })
+        coord = data.get("coord") if isinstance(data.get("coord"), dict) else {}
+        main = data.get("main") if isinstance(data.get("main"), dict) else {}
+        wind = data.get("wind") if isinstance(data.get("wind"), dict) else {}
+        weather_list = data.get("weather") if isinstance(data.get("weather"), list) else [{}]
+        weather_first = weather_list[0] if weather_list else {}
+        sys_info = data.get("sys") if isinstance(data.get("sys"), dict) else {}
 
-    print("Successfully fetched all weather data.")
-    # The returned DataFrame will be saved by Dagster's IOManager
-    return pd.DataFrame(processed_data)
+        raw_dt = data.get("dt")
+        timestamp = (
+            pd.to_datetime(raw_dt, unit="s")
+            if raw_dt is not None
+            else pd.Timestamp.now(tz="UTC")
+        )
+
+        processed_data.append(
+            {
+                "city": city,
+                "lat": coord.get("lat", lat),
+                "lon": coord.get("lon", lon),
+                "timestamp": timestamp,
+                "temp": main.get("temp"),
+                "feels_like": main.get("feels_like"),
+                "temp_min": main.get("temp_min"),
+                "temp_max": main.get("temp_max"),
+                "pressure": main.get("pressure"),
+                "humidity": main.get("humidity"),
+                "wind_speed": wind.get("speed"),
+                "wind_deg": wind.get("deg"),
+                "weather_main": weather_first.get("main"),
+                "weather_description": weather_first.get("description"),
+                "country": sys_info.get("country"),
+            }
+        )
+
+    return processed_data
+
+
+@asset
+def raw_weather_data(api: APIResource) -> pd.DataFrame:
+    """Dagster asset fetching world city weather telemetry into a Pandas DataFrame.
+
+    Pre-conditions:
+        - api resource must provide openweathermap_api_key.
+
+    Post-conditions:
+        - Returns pandas DataFrame containing observations for all benchmark cities.
+    """
+    records = fetch_weather_records(api.openweathermap_api_key)
+    return pd.DataFrame(records)

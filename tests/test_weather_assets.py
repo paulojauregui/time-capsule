@@ -1,56 +1,102 @@
-# tests/test_weather_assets.py
-import os
-import pandas as pd
-import requests
+"""Unit tests for weather assets and meteorological telemetry ingestion.
+
+Pre-conditions:
+    - Pytest framework and time_capsule.weather_assets must be importable.
+
+Post-conditions:
+    - Validates mocked OpenWeatherMap ingestion, fallback records, and missing key error handling.
+"""
+
 from unittest.mock import MagicMock
 
-# Import the asset we want to test
-from time_capsule.weather_assets import raw_weather_data, CITIES
-from time_capsule.weather_assets import APIResource
+import pandas as pd
+import pytest
 
-def test_raw_weather_data(monkeypatch):
+from time_capsule.resources import APIResource
+from time_capsule.weather_assets import (
+    CITIES,
+    fetch_weather_records,
+    get_fallback_weather_records,
+    raw_weather_data,
+)
+
+
+def test_raw_weather_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the raw_weather_data asset by mocking the requests.get call.
+
+    Pre-conditions:
+        - requests.get is monkeypatched to return synthetic OpenWeatherMap payloads.
+
+    Post-conditions:
+        - Verifies that raw_weather_data produces a DataFrame with 5 city rows and expected temperatures.
     """
-    Tests the raw_weather_data asset by mocking the requests.get call.
-    """
-    # 1. Define the fake data we want the API to return.
-    # This mimics the structure of the real OpenWeatherMap API response.
-    mock_api_data = {
+    mock_api_data: dict[str, dict[str, object]] = {
         "Tokyo": {"main": {"temp": 15.0}, "city": "Tokyo"},
         "New York": {"main": {"temp": 12.0}, "city": "New York"},
     }
 
-    # 2. Create a mock function to replace `requests.get`.
-    # This function will be called instead of the real one.
-    def mock_get(url):
-        # Create a mock response object
+    def mock_get(url: str, timeout: float = 10.0) -> MagicMock:
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
 
-        # Return a different fake response depending on the URL
-        if "lat=35.68" in url: # Tokyo
+        if "lat=35.68" in url:
             mock_resp.json.return_value = mock_api_data["Tokyo"]
-        elif "lat=40.71" in url: # New York
+        elif "lat=40.71" in url:
             mock_resp.json.return_value = mock_api_data["New York"]
-        else: # Default for any other cities in the real list
+        else:
             mock_resp.json.return_value = {"main": {"temp": 10.0}}
-        
+
         return mock_resp
 
-    # Patch `requests.get` specifically where it is used: in the weather_assets module.
     monkeypatch.setattr("time_capsule.weather_assets.requests.get", mock_get)
 
-    # 3. Create a mock instance of your APIResource for the test
     mock_api_resource = APIResource(
         openweathermap_api_key="dummy_weather_key",
-        alphavantage_api_key="dummy_stock_key"
+        alphavantage_api_key="dummy_stock_key",
     )
 
-    # 4. Now, call the asset function. It will use our mock instead of
-    # making a real network call.
     result_df = raw_weather_data(api=mock_api_resource)
 
-    # 5. Assert that the output is what we expect.
     assert isinstance(result_df, pd.DataFrame)
-    assert len(result_df) == len(CITIES) # The real asset fetches 5 cities
+    assert len(result_df) == len(CITIES)
     assert "city" in result_df.columns
-    assert result_df.loc[result_df['city'] == 'Tokyo']['temp'].iloc[0] == 15.0
+    assert result_df.loc[result_df["city"] == "Tokyo"]["temp"].iloc[0] == 15.0
+
+
+def test_fetch_weather_records_missing_key() -> None:
+    """Test that fetch_weather_records raises ValueError when api_key is empty or None.
+
+    Pre-conditions:
+        - None or empty string provided as api_key.
+
+    Post-conditions:
+        - Confirms ValueError is raised.
+    """
+    with pytest.raises(ValueError, match="OPENWEATHERMAP_API_KEY environment variable not set."):
+        fetch_weather_records(api_key="")
+
+    with pytest.raises(ValueError, match="OPENWEATHERMAP_API_KEY environment variable not set."):
+        fetch_weather_records(api_key=None)
+
+
+def test_get_fallback_weather_records() -> None:
+    """Test that get_fallback_weather_records returns valid baseline records for all benchmark cities.
+
+    Pre-conditions:
+        - None.
+
+    Post-conditions:
+        - Verifies records list has length matching CITIES and contains required metric keys.
+    """
+    records = get_fallback_weather_records()
+    assert len(records) == len(CITIES)
+    city_names = {r["city"] for r in records}
+    assert "Tokyo" in city_names
+    assert "New York" in city_names
+    assert "London" in city_names
+    assert "Beijing" in city_names
+    assert "Sydney" in city_names
+    for r in records:
+        assert "temp" in r
+        assert "humidity" in r
+        assert "pressure" in r

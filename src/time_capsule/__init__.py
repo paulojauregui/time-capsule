@@ -25,7 +25,6 @@ defs = Definitions(
         "io_manager": DuckDBPandasIOManager(
             database="data/time_capsule.duckdb",
             schema="main",
-            use_quotes=False,
         ),
         "api": APIResource(
             openweathermap_api_key=os.getenv("OPENWEATHERMAP_API_KEY", ""),
