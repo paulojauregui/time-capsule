@@ -34,6 +34,23 @@ __all__ = [
     "compute_vader_sentiment",
 ]
 
+_VADER_ANALYZER: SentimentIntensityAnalyzer | None = None
+
+
+def _get_vader_analyzer() -> SentimentIntensityAnalyzer:
+    """Return a cached singleton instance of SentimentIntensityAnalyzer.
+
+    Pre-conditions:
+        - vaderSentiment package must be installed.
+
+    Post-conditions:
+        - Initializes SentimentIntensityAnalyzer once per process to avoid repeated disk I/O.
+    """
+    global _VADER_ANALYZER
+    if _VADER_ANALYZER is None:
+        _VADER_ANALYZER = SentimentIntensityAnalyzer()
+    return _VADER_ANALYZER
+
 
 class SentimentMetrics(BaseModel):
     """Normalized lexical sentiment polarity and controversy scores.
@@ -72,7 +89,7 @@ def compute_vader_sentiment(texts: list[str]) -> SentimentMetrics:
             controversy_score=0.0,
         )
 
-    analyzer = SentimentIntensityAnalyzer()
+    analyzer = _get_vader_analyzer()
     compounds: list[float] = []
     pos_ratios: list[float] = []
     neg_ratios: list[float] = []
