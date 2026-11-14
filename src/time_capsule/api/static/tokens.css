@@ -1,0 +1,99 @@
+/* Design Token Contract - Digital Time Capsule & Autonomous Reading Vault (v2-ux)
+ *
+ * Single source of truth for every visual variable in the frontend. This is the
+ * ONLY stylesheet permitted to contain raw hex or rgba color literals; every
+ * other stylesheet must consume these custom properties through var(--*) only.
+ * No emojis or decorative unicode symbols are permitted in this file.
+ */
+:root {
+  /* 1. 4-Tier Dark Surface Elevation Hierarchy */
+  --bg-canvas: #090c12;
+  --bg-surface-1: #101520;
+  --bg-surface-2: #171f2e;
+  --bg-elevated: #1e283b;
+  --bg-backdrop: rgba(9, 12, 18, 0.82);
+
+  /* 2. Structural Hairline Borders & Focus Ring */
+  --border-subtle: #1e293b;
+  --border-default: #2b3950;
+  --border-strong: #3e5272;
+  --focus-ring: #60a5fa;
+
+  /* 3. Primary Text Hierarchy (Verified >= 4.5:1 AA / >= 10:1 AAA) */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* 4. Interactive & Link Accents */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-text: #93c5fd;
+
+  /* 5. Strictly Reserved Archival Canon Tokens (14 Evergreen Canon & Anchor Spotlights ONLY) */
+  --canon-amber-text: #fbbf24;
+  --canon-amber-bg: rgba(245, 158, 11, 0.14);
+  --canon-amber-border: rgba(245, 158, 11, 0.42);
+
+  /* 6. Source Platform & Taxonomy Badge Tokens */
+  --source-hn-text: #fdba74;
+  --source-hn-bg: rgba(249, 115, 22, 0.14);
+  --source-hn-border: rgba(249, 115, 22, 0.40);
+
+  --source-reddit-text: #fca5a5;
+  --source-reddit-bg: rgba(239, 68, 68, 0.14);
+  --source-reddit-border: rgba(239, 68, 68, 0.40);
+
+  --source-github-text: #e2e8f0;
+  --source-github-bg: rgba(148, 163, 184, 0.16);
+  --source-github-border: rgba(148, 163, 184, 0.40);
+
+  --pillar-text: #93c5fd;
+  --pillar-bg: rgba(59, 130, 246, 0.14);
+  --pillar-border: rgba(59, 130, 246, 0.38);
+
+  --epoch-text: #d8b4fe;
+  --epoch-bg: rgba(168, 85, 247, 0.14);
+  --epoch-border: rgba(168, 85, 247, 0.38);
+
+  /* 7. Operational & Model Synthesis Status Tokens */
+  --status-nominal-text: #6ee7b7;
+  --status-nominal-bg: rgba(16, 185, 129, 0.14);
+  --status-nominal-border: rgba(16, 185, 129, 0.40);
+
+  --status-degraded-text: #fcd34d;
+  --status-degraded-bg: rgba(234, 179, 8, 0.14);
+  --status-degraded-border: rgba(234, 179, 8, 0.42);
+
+  --status-error-text: #fca5a5;
+  --status-error-bg: rgba(239, 68, 68, 0.14);
+  --status-error-border: rgba(239, 68, 68, 0.42);
+
+  /* 8. Typography Stacks & Modular Scale */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.5rem;
+
+  /* 9. Spatial Grid (4px / 8px Scale) & Radii */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-pill: 9999px;
+
+  /* 10. Purposeful Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+}
