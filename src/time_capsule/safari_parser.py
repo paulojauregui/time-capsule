@@ -513,6 +513,19 @@ def classify_pillars(
     return deduped[:3]
 
 
+def parse_safari_reading_list(text: str, epoch: str = "2026_11_06") -> list[SafariLinkItem]:
+    """Parse raw Safari reading list text into SafariLinkItem list.
+
+    Pre-conditions:
+        - text must be a string containing Safari export lines or markdown links.
+        - epoch must be a valid epoch identifier.
+
+    Post-conditions:
+        - Returns list of parsed SafariLinkItem models.
+    """
+    return parse_safari_export_text(text, epoch)
+
+
 def parse_safari_export_text(text: str, epoch_id: str) -> list[SafariLinkItem]:
     """Parse raw Safari/Notes markdown export text into unmerged link items.
 

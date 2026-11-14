@@ -67,6 +67,19 @@ class CulturalExtractor:
         self.timeout = timeout
         self.user_agent = user_agent
 
+    def extract_metadata(self, url: str) -> CulturalContentSummary:
+        """Extract metadata from reddit thread or general web article URL.
+
+        Pre-conditions:
+            - url must be a valid HTTP or HTTPS URL.
+
+        Post-conditions:
+            - Returns CulturalContentSummary extracted from target page or deterministic fallback.
+        """
+        if "reddit.com" in url.lower():
+            return self.fetch_reddit_summary(url)
+        return self.fetch_article_summary(url)
+
     def fetch_reddit_summary(self, reddit_url: str) -> CulturalContentSummary:
         """Fetch Reddit discussion metadata, selftext excerpt, and top comments via .json API.
 

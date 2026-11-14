@@ -1,94 +1,140 @@
-# Project: Digital Time Capsule
+# Digital Time Capsule & Daily Tech Discussion Digest (`time-capsule`)
 
-A personal data engineering project designed to capture a daily snapshot of the world. This pipeline collects data from various public APIs and sources, processes it, and stores it in a data lake, creating a queryable "time capsule" for each day.
-
----
-
-## Overview
-
-The goal of this project is to build a resilient, automated data pipeline that runs daily to collect a variety of data points, including:
-
-* **Financial Data:** Opening and closing prices for the top 25 stocks by market cap.
-* **Meteorological Data:** Weather conditions for the top 25 global cities.
-* **News & Culture:** Top headlines from major news sources and trending topics from social media.
-* **Sentiment Analysis:** Processing text-based data to gauge public sentiment.
-
-The entire pipeline is orchestrated using **Dagster**, with data stored as Parquet files in an S3-compatible object store.
+Autonomous longitudinal technical reading vault lakehouse, DGX Spark technical discussion synthesis, and daily publication digest engine for `paulojauregui.com`.
 
 ---
 
-## Key Features
+## 1. Architectural Overview
 
-* **Automated Daily Ingestion:** Runs on a schedule to fetch new data every day.
-* **Asset-Based Orchestration:** Leverages Dagster's software-defined assets for a declarative and observable pipeline.
-* **Scalable Storage:** Uses MinIO for a self-hosted, S3-compatible data lake.
-* **Efficient Querying:** Data is stored in the columnar Parquet format, enabling fast analytical queries with DuckDB.
-* **Modular Design:** Each data source is a distinct, testable asset.
+`time-capsule` ingests, canonicalizes, deduplicates, and analyzes multi-epoch technical reading lists and online discussion threads across 3 distinct historical epochs:
+- **`2023_2024` Genesis Epoch**: 229 raw links capturing initial exploration into LLM internals, distributed systems, software career craft, and vocabulary lexicon lookups.
+- **`2026_08_16` Summer Bridge Epoch**: 279 raw links capturing Kubernetes bare-metal orchestration, Linux kernel development, local LLM harnesses, and GPU compute topologies.
+- **`2026_11_06` Production Epoch**: 320 raw links reflecting autonomous agent infrastructure, DGX Spark vLLM inference, Temporal durable execution, and self-hosted homelab mechanics.
 
----
+```mermaid
+flowchart TD
+    subgraph Ingestion["Ingestion & Multi-Epoch Parsing"]
+        Seeds["Safari Seed Exports<br/>(828 raw links)"] --> Parser["safari_parser.py<br/>(Canonicalization, Tracking Stripping)"]
+        Parser --> Dedup["Cross-Epoch Deduplicator<br/>(608 unique vault items)"]
+        Dedup --> Evergreen["14 Evergreen Canon Items<br/>(Present in all 3 epochs)"]
+        Dedup --> HN["HN Threads & #anchor_comment_id<br/>(Algolia Hydration)"]
+    end
 
-## Tech Stack
+    subgraph Analysis["Enrichment & Discussion Synthesis"]
+        Probe{"Circuit Breaker<br/>Probe (< 2.0s)"}
+        Probe -->|Online| Spark["DGX Spark GB10<br/>nvidia/Qwen3.8-Flash-Next-FP4-Local"]
+        Probe -->|Offline| Heuristic["Deterministic Heuristic + VADER"]
+        Spark --> Synthesis["DiscussionAnalysis<br/>(Thesis, Consensus, Pushback, Spotlight)"]
+        Heuristic --> Synthesis
+    end
 
-* **Orchestrator:** [Dagster](https://dagster.io/)
-* **Language:** Python 3.10+
-* **Dependency Management:** [Poetry](https://python-poetry.org/)
-* **Data Storage:** [MinIO](https://min.io/) (S3-compatible object storage)
-* **Query Engine:** [DuckDB](https://duckdb.org/)
-* **Deployment:** Docker, Kubernetes (via Helm), ArgoCD
+    subgraph Storage["Lakehouse & Workflow Engine"]
+        Synthesis --> DuckDB["DuckDB Lakehouse<br/>(data/time_capsule.duckdb)"]
+        DuckDB --> Parquet["Parquet Lakehouse Exports"]
+        Temporal["Temporal Workflows<br/>(BackfillSafariVaultWorkflow,<br/>DailyDigestCapsuleWorkflow)"] --> DuckDB
+    end
 
----
-
-## Getting Started
-
-### Prerequisites
-
-* Python 3.10+
-* Poetry installed
-* Docker (for eventual containerization)
-
-### 1. Clone the Repository
-
-```bash
-git clone git@github.com:HowDiggy/time-capsule.git
-cd time-capsule
+    subgraph Serving["Delivery & Web UI"]
+        DuckDB --> FastAPI["FastAPI Service (:8000)<br/>(/healthz, /ready, /api/v1/*)"]
+        FastAPI --> WebUI["Single-Page Dashboard (/)<br/>(Digest, Vault, Capsule, Macro)"]
+        FastAPI --> Blog["Markdown Digest<br/>(paulojauregui.com)"]
+    end
 ```
 
-### 2. Install Dependencies
+---
 
-This project uses Poetry to manage dependencies. Run the following command to create a virtual environment and install the required packages.
+## 2. Six Intellectual Pillars Taxonomy
 
-```bash
-poetry install
-```
+All reading vault links, search intents, and synthesized discussions are categorized into 6 core intellectual pillars:
 
-### 3. Configure Environment Variables
-
-Create a `.env` file in the root of the project by copying the example file.
-
-```bash
-cp .env.example .env
-```
-
-Now, edit the `.env` file to add your API keys and any other necessary configuration.
-
-### 4. Run the Dagster UI
-
-To start the local Dagster webserver and view the asset graph, run:
-
-```bash
-dagster dev -m time_capsule
-```
-
-Navigate to `http://localhost:3000` in your browser. From the UI, you can manually materialize assets to test the pipeline.
+| Pillar Key | Name | Core Subject Matter |
+| :--- | :--- | :--- |
+| `PILLAR_1_AI_LLM_AGENTS` | AI, LLMs & Autonomous Agents | Transformers, LLM inference engines (vLLM), prompt routing, agent loops, reasoning models. |
+| `PILLAR_2_SYSTEMS_KERNEL` | Systems, Kernel & Low-Level | Linux kernel internals, memory allocators, page cache, eBPF, Rust, C, NVMe queue depths. |
+| `PILLAR_3_INFRA_K8S_HOMELAB` | Infrastructure, Kubernetes & Homelab | K3s bare-metal clusters, Cilium CNI, SeaweedFS, GitOps (ArgoCD), KubeVirt VMs, NixOS gateways. |
+| `PILLAR_4_MATH_ML_THEORY` | Mathematics, ML & Foundations | Linear algebra, numerical optimization, graph theory, distributed consensus math, loss mechanics. |
+| `PILLAR_5_SWE_CRAFT_CAREER` | Software Craftsmanship & Career | Architecture paradigms, refactoring, systems design, senior engineer career progression, testing. |
+| `PILLAR_6_HUMANITIES_LIFE` | Humanities, Life & Culture | Philosophy, psychology, cognitive science, historical perspectives, calm technology. |
 
 ---
 
-## Project Roadmap
+## 3. The 14 Evergreen Canon Items
 
-This project is being developed in iterative phases:
+Reading list items that survived across all three historical epochs (`2023_2024`, `2026_08_16`, `2026_11_06`):
 
-* [x] **Phase 1: Foundation:** Local project setup and basic Dagster asset definition.
-* [ ] **Phase 2: Core Assets:** Implement ingestion for primary data sources (weather, news) and configure local Parquet storage.
-* [ ] **Phase 3: Scale Out:** Add remaining data sources and implement sentiment analysis.
-* [ ] **Phase 4: Productionize:** Deploy to a Kubernetes cluster and schedule for automated daily runs.
-* [ ] **Phase 5: Access Layer:** Build a FastAPI and frontend to query and explore the time capsule data.
+1. **Calm Technology** (`https://calmtech.com`) - `PILLAR_3_INFRA_K8S_HOMELAB`
+2. **Lessons Learned from Twenty Years of Site Reliability Engineering | Hacker News** (`https://news.ycombinator.com/item?id=38037141`) - `PILLAR_3_INFRA_K8S_HOMELAB`
+3. **How to Not Get Screwed over as a Software Engineer \[video\] | Hacker News** (`https://news.ycombinator.com/item?id=38112827`) - `PILLAR_5_SWE_CRAFT_CAREER`
+4. **This Is Your Brain on Books - Public Books** (`https://publicbooks.org/this-is-your-brain-on-books`) - `PILLAR_6_HUMANITIES_LIFE`
+5. **Ask HN: What side projects landed you a job? | Hacker News** (`https://news.ycombinator.com/item?id=38511280`) - `PILLAR_5_SWE_CRAFT_CAREER`
+6. **You are never taught how to build quality software | Hacker News** (`https://news.ycombinator.com/item?id=38570261`) - `PILLAR_5_SWE_CRAFT_CAREER`
+7. **The art of high performance computing | Hacker News** (`https://news.ycombinator.com/item?id=38815334`) - `PILLAR_2_SYSTEMS_KERNEL`
+8. **The 8 Stages of Life That Make or Break You - Darius Foroux** (`https://dariusforoux.com/stages-of-life`) - `PILLAR_6_HUMANITIES_LIFE`
+9. **Why are we templating YAML? (2019) | Hacker News** (`https://news.ycombinator.com/item?id=39101828`) - `PILLAR_3_INFRA_K8S_HOMELAB`
+10. **Data Structures for Data-Intensive Applications (cs-people.bu.edu)** (`https://cs-people.bu.edu/mathan/publications/fnt23-athanassoulis.pdf`) - `PILLAR_2_SYSTEMS_KERNEL`
+11. **How do neural networks learn? | Hacker News** (`https://news.ycombinator.com/item?id=39744669`) - `PILLAR_4_MATH_ML_THEORY`
+12. **Building reliable systems out of unreliable agents | Hacker News** (`https://news.ycombinator.com/item?id=39984209`) - `PILLAR_1_AI_LLM_AGENTS`
+13. **Show HN: I built a game to help you learn neural network architectures | Hacker News** (`https://news.ycombinator.com/item?id=40429200`) - `PILLAR_4_MATH_ML_THEORY`
+14. **First we shape our social graph, then it shapes us (2022) | Hacker News** (`https://news.ycombinator.com/item?id=40769006`) - `PILLAR_6_HUMANITIES_LIFE`
+
+---
+
+## 4. API Endpoints
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/healthz` | Kubernetes liveness probe returning service operational status. |
+| `GET` | `/ready` | Kubernetes readiness probe verifying DuckDB connectivity and seed item count. |
+| `GET` | `/` | Interactive single-page dashboard featuring 4 views: Daily Tech Digest, 3-Epoch Reading Vault, Personal Time Capsule, and Macro Time Machine. |
+| `GET` | `/api/v1/vault` | Multi-parameter filtered query over vault items (`epoch`, `is_evergreen_canon`, `pillar`, `source_type`, `min_sentiment`, `search`, `limit`). |
+| `GET` | `/api/v1/epochs/summary` | Longitudinal summary across the 3 epochs, evergreen canon, anchored items, and taste profile. |
+| `POST` | `/api/v1/vault/import` | Ingest raw Safari Reading List lines or markdown text and merge into the lakehouse. |
+| `POST` | `/api/v1/vault/{item_id}/analyze` | Trigger on-demand discussion synthesis via DGX Spark vLLM (with deterministic offline fallback). |
+| `GET` | `/api/v1/intents` | Categorized search query intents (`technical_learning`, `vocabulary`, `personal_life`). |
+| `GET` | `/api/v1/vocabulary` | Personal technical vocabulary lexicon terms and definitions. |
+| `GET` | `/api/v1/digests` | Historical list of generated `DailyCapsuleSnapshot` summaries. |
+| `GET` | `/api/v1/capsule/{capsule_date}` | Retrieve or dynamically synthesize daily capsule snapshot and publication Markdown digest. |
+
+---
+
+## 5. Local Development & Verification
+
+### Install Dependencies
+
+```bash
+poetry install --with dev
+```
+
+### Run Verification Suite
+
+```bash
+# Run 45 fast deterministic tests
+poetry run pytest -v
+
+# Run Ruff linter
+poetry run ruff check .
+
+# Run MyPy static type analysis
+poetry run mypy src tests
+
+# Verify GitOps Kustomize build
+kubectl kustomize deploy/base
+```
+
+### Run Web Application Locally
+
+```bash
+poetry run python -m time_capsule.api.main
+```
+
+Open `http://localhost:8000` in your browser.
+
+---
+
+## 6. GitOps Deployment
+
+The service is packaged as a non-root container image (`USER 10001:10001`) and deployed to Kubernetes via Kustomize:
+
+- **Deployment**: `deploy/base/01-deployment.yaml` with liveness (`/healthz`) and readiness (`/ready`) probes.
+- **Service**: `deploy/base/02-service.yaml` exposing port `80` targeting container port `8000`.
+- **HTTPRoute**: `deploy/base/03-httproute.yaml` attached to Gateway API `homelab-gateway` in namespace `argocd`, routing `time-capsule.paulojauregui.com`.

@@ -335,6 +335,18 @@ class TimeCapsuleRepository:
         rows = self.conn.execute(query, params).fetchall()
         return [self._row_to_vault_item(r) for r in rows]
 
+    def count_vault_items(self) -> int:
+        """Count total items in vault_items table.
+
+        Pre-conditions:
+            - DuckDB connection must be open.
+
+        Post-conditions:
+            - Returns integer count of stored vault items.
+        """
+        row = self.conn.execute("SELECT COUNT(*) FROM vault_items;").fetchone()
+        return int(row[0]) if row else 0
+
     def get_vault_item(self, item_id: str) -> SafariLinkItem | None:
         """Lookup a single vault item by item_id or hn_item_id.
 

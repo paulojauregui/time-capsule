@@ -36,3 +36,10 @@ Thumbs.db
 
 # Tooling Caches & Logs
 .tmp_dagster_home*
+
+# Data Lakehouse Databases & Exports
+*.duckdb
+*.duckdb.wal
+data/*.duckdb
+data/*.parquet
+data/exports/
