@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  labels:
+    app.kubernetes.io/name: time-capsule
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: time-capsule
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: time-capsule
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: api
+          image: ghcr.io/paulojauregui/time-capsule
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: APP_NAME
+              value: "time-capsule"
+            - name: APP_ENV
+              value: "production"
+            - name: TEMPORAL_HOST
+              value: "temporal-frontend.temporal-system.svc.cluster.local:7233"
+            - name: SPARK_LLM_BASE_URL
+              value: "http://happy.tail749110.ts.net:8000/v1"
+            - name: TIME_CAPSULE_DB_PATH
+              value: "/app/data/time_capsule.duckdb"
+            - name: TIME_CAPSULE_SEED_DIR
+              value: "/app/data/seeds"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
