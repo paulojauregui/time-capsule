@@ -34,8 +34,11 @@ flowchart TD
         Temporal["Temporal Workflows<br/>(BackfillSafariVaultWorkflow,<br/>DailyDigestCapsuleWorkflow)"] --> DuckDB
     end
 
-    subgraph Serving["Delivery & Web UI"]
+    subgraph Serving["Delivery & Web UI (v2-ux)"]
         DuckDB --> FastAPI["FastAPI Service (:8000)<br/>(/healthz, /ready, /api/v1/*)"]
+        UI["api/ui.py<br/>(load_index_html, mount_ui_assets)"] --> FastAPI
+        Templates["templates/index.html<br/>(Semantic HTML5 Shell)"] --> UI
+        Static["/static<br/>(tokens.css, components.css,<br/>app.js, views.js)"] --> FastAPI
         FastAPI --> WebUI["Single-Page Dashboard (/)<br/>(Digest, Vault, Capsule, Macro)"]
         FastAPI --> Blog["Markdown Digest<br/>(paulojauregui.com)"]
     end
@@ -97,7 +100,57 @@ Reading list items that survived across all three historical epochs (`2023_2024`
 
 ---
 
-## 5. Local Development & Verification
+## 5. Modular `v2-ux` Frontend Architecture
+
+The dashboard is a dependency-free, zero-build single-page application. `api/ui.py` resolves the asset directories beside the installed package, renders the shell via `load_index_html()`, and mounts `/static` through `mount_ui_assets()`, so templates and static assets are served from the same wheel that ships the Python code.
+
+| Asset | Responsibility |
+| :--- | :--- |
+| `src/time_capsule/api/templates/index.html` | Semantic HTML5 shell: skip link, `role="banner"` header, status pills, `role="tablist"` navigation, 4 `role="tabpanel"` workspaces, dialogs, and the `aria-live="polite"` status region. No `<style>` tags, inline `style` attributes, or inline JS. |
+| `src/time_capsule/api/static/tokens.css` | Design token contract (Archival Observatory): the only stylesheet permitted raw hex/rgba literals. Everything downstream consumes `var(--*)`. |
+| `src/time_capsule/api/static/components.css` | Layout primitives and component classes: tab bar, cards, wells, badges, skeleton keyframes, numeric columns. |
+| `src/time_capsule/api/static/app.js` | Application controller: `appState` store, tab switching, WAI-ARIA roving tabindex, global keyboard shortcuts, modal focus management, `aria-live` announcements, and REST data loaders. |
+| `src/time_capsule/api/static/views.js` | `window.TimeCapsuleViews`: pure, XSS-safe string renderers for the 5 deterministic component states across all workspaces and modals. |
+| `src/time_capsule/api/ui.py` | Typed asset loader and static mount helper (`get_templates_dir`, `get_static_dir`, `load_index_html`, `mount_ui_assets`). |
+
+### 5.1 WCAG 2.2 AA Keyboard Navigation
+
+All functionality is reachable without a pointer; focus is never trapped or lost.
+
+| Key | Context | Behavior |
+| :--- | :--- | :--- |
+| `ArrowLeft` / `ArrowRight` | Tab bar | Moves the roving tabindex between the 4 workspace tabs, wrapping at both ends, and activates the newly focused tab. |
+| `Home` / `End` | Tab bar | Jumps focus to the first / last tab. |
+| `/` or `Cmd/Ctrl+K` | Anywhere outside a text field | Switches to the Vault workspace and focuses (and selects) the vault search input. |
+| `Escape` | Open modal | Dismisses `#import-modal` or `#analysis-modal` and restores focus to the stored `lastFocusedElement` trigger. |
+| `Escape` | Vault search field | Clears the active search filter and reloads the unfiltered vault. |
+| `Tab` | Shell | Skip link (`Skip to main workspace`) precedes all interactive content; each `tabpanel` is focusable. |
+
+A screen-reader-only `aria-live="polite"` region announces tab switches, filter changes, import results, and analysis completion without stealing focus.
+
+### 5.2 Five-State Rendering Determinism
+
+Every data-driven region renders through one of 5 deterministic states; no region is ever left in an undefined visual condition:
+
+| State | Trigger | Rendering Contract |
+| :--- | :--- | :--- |
+| `Empty` | Successful query, zero rows | Neutral empty well with guidance copy, `aria-busy="false"`. |
+| `Loading` | Request in flight | Fixed-height skeleton placeholders (`skeleton-card`, `skeleton-row`, `skeleton-line`, `skeleton-well`) with `aria-busy="true"`. Reserved height keeps cumulative layout shift at `CLS = 0`; pulsing is suppressed under `prefers-reduced-motion`. |
+| `Nominal` | Populated response | Fully rendered cards, tables, and wells; scores use `tabular-nums` for column alignment. |
+| `Degraded/Offline` | `model_used == "heuristic-vader"` | Header model pill switches to `pill-degraded` and the `#degraded-mode-banner` announces deterministic VADER + anchor sub-thread fallback instead of DGX Spark vLLM synthesis. |
+| `Error` | Transport or HTTP failure | `role="alert"` error well with the failing reason and a retry button that re-invokes the originating loader. |
+
+### 5.3 Archival Observatory Design Tokens
+
+- **Numeric alignment**: `.tabular-nums` and `.num-col` apply `font-variant-numeric: tabular-nums` so sentiment, controversy, counts, and anchor IDs align in columns instead of jittering between renders.
+- **Evergreen Canon amber reservation**: `--canon-amber-text`, `--canon-amber-bg`, and `--canon-amber-border` are reserved exclusively for the 14 Evergreen Canon items and anchor spotlights, preserving amber as an unambiguous "survived all 3 epochs" signal. Source-platform and status badges use their own token families instead.
+- **Elevation & contrast**: 4-tier dark surface hierarchy (`--bg-canvas`, `--bg-surface-1`, `--bg-surface-2`, `--bg-elevated`) with a text ramp verified at >= 4.5:1 (AA) and >= 10:1 (AAA), plus a dedicated `--focus-ring` token.
+- **Motion**: `--duration-fast` / `--ease-out` bound animation to purposeful state feedback only, with all decoration gated behind `prefers-reduced-motion`.
+- **No emojis**: Emoji characters are prohibited across templates, stylesheets, JavaScript, and their tests.
+
+---
+
+## 6. Local Development & Verification
 
 ### Install Dependencies
 
@@ -108,7 +161,7 @@ poetry install --with dev
 ### Run Verification Suite
 
 ```bash
-# Run 45 fast deterministic tests
+# Run 145 fast deterministic tests
 poetry run pytest -v
 
 # Run Ruff linter
@@ -116,6 +169,10 @@ poetry run ruff check .
 
 # Run MyPy static type analysis
 poetry run mypy src tests
+
+# Verify wheel and sdist ship the dashboard templates and static assets
+poetry build
+python -c "import zipfile,glob; print('\n'.join(n for n in zipfile.ZipFile(sorted(glob.glob('dist/*.whl'))[-1]).namelist() if 'static/' in n or 'templates/' in n))"
 
 # Verify GitOps Kustomize build
 kubectl kustomize deploy/base
@@ -131,7 +188,7 @@ Open `http://localhost:8000` in your browser.
 
 ---
 
-## 6. GitOps Deployment
+## 7. GitOps Deployment
 
 The service is packaged as a non-root container image (`USER 10001:10001`) and deployed to Kubernetes via Kustomize:
 

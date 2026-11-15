@@ -32,6 +32,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 packages = [{include = "time_capsule", from = "src"}]
+include = [
+    {path = "src/time_capsule/api/templates/**/*", format = ["sdist", "wheel"]},
+    {path = "src/time_capsule/api/static/**/*", format = ["sdist", "wheel"]},
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.15"

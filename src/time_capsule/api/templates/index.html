@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Time Capsule &amp; Autonomous Reading Vault</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
+</head>
+<body class="app-shell">
+  <a href="#main-workspace" class="skip-link" id="skip-to-main">Skip to main workspace</a>
+  <div id="live-status-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <header class="site-header" role="banner">
+    <div class="header-titles">
+      <h1>Digital Time Capsule &amp; Autonomous Reading Vault</h1>
+      <p class="header-subtitle">Longitudinal 3-Epoch Engineering Observatory &amp; Autonomous Reading Vault</p>
+    </div>
+    <div class="status-pills">
+      <span id="service-status" class="pill pill-nominal tabular-nums">Service: Checking...</span>
+      <span id="vault-count-pill" class="pill tabular-nums">Vault: Loading...</span>
+      <span id="evergreen-count-pill" class="pill pill-canon tabular-nums">Evergreen Canon: -- items</span>
+      <span id="model-status-pill" class="pill pill-nominal tabular-nums">Model: Qwen3.8-Flash-Next-FP4-Local</span>
+    </div>
+  </header>
+
+  <div id="degraded-mode-banner" class="state-banner state-banner-degraded" role="status" hidden>
+    <span>Degraded Mode: Local DGX Spark vLLM inference engine is offline. Synthesizing discussions via deterministic heuristic fallback (VADER + anchor sub-thread heuristic).</span>
+  </div>
+
+  <nav class="tab-bar" role="tablist" aria-label="Time Capsule Workspaces">
+    <button type="button" class="tab-btn active" role="tab" id="tab-btn-digest" aria-selected="true" aria-controls="tab-digest" tabindex="0" data-tab="digest">Daily Tech Digest</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-btn-vault" aria-selected="false" aria-controls="tab-vault" tabindex="-1" data-tab="vault">3-Epoch Reading Vault &amp; Evergreen Canon</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-btn-capsule" aria-selected="false" aria-controls="tab-capsule" tabindex="-1" data-tab="capsule">Personal Time Capsule</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-btn-macro" aria-selected="false" aria-controls="tab-macro" tabindex="-1" data-tab="macro">Macro Time Machine</button>
+  </nav>
+
+  <main id="main-workspace" class="workspace-main">
+    <!-- Tab 1: Daily Tech Digest -->
+    <section id="tab-digest" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-digest" tabindex="0">
+      <div class="control-panel">
+        <div class="filter-group">
+          <label for="capsule-date-input" class="control-label">Capsule Date</label>
+          <input type="text" id="capsule-date-input" class="form-control tabular-nums" value="2026-11-06">
+        </div>
+        <button type="button" id="load-capsule-btn" class="btn-primary">Load Capsule</button>
+        <button type="button" id="copy-digest-btn" class="btn-secondary">Copy Digest</button>
+        <span id="copy-status" class="results-meta tabular-nums"></span>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Executive Discussion Highlights</h2>
+              <p class="card-subtitle">Local DGX Spark LLM synthesis across top Hacker News &amp; Reddit engineering threads</p>
+            </div>
+          </div>
+          <div id="discussions-container" aria-busy="false" class="discussions-stack"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Publication Markdown Digest</h2>
+              <p class="card-subtitle">Exportable digest formatted for publication to paulojauregui.com</p>
+            </div>
+            <button type="button" id="copy-digest-secondary-btn" class="btn-secondary">Copy Markdown</button>
+          </div>
+          <div id="markdown-preview" aria-busy="false" class="markdown-preview"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: 3-Epoch Reading Vault & Evergreen Canon -->
+    <section id="tab-vault" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-vault" tabindex="0" hidden>
+      <div class="control-panel">
+        <div class="filter-group">
+          <label for="vault-epoch-select" class="control-label">Epoch</label>
+          <select id="vault-epoch-select" class="form-control">
+            <option value="">All Epochs</option>
+            <option value="2023_2024">2023_2024 (Genesis)</option>
+            <option value="2026_08_16">2026_08_16 (Bridge)</option>
+            <option value="2026_11_06">2026_11_06 (Production)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="vault-evergreen-select" class="control-label">Evergreen Canon</label>
+          <select id="vault-evergreen-select" class="form-control">
+            <option value="">All Items</option>
+            <option value="true">Evergreen Canon Only (14 Items)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="vault-pillar-select" class="control-label">Intellectual Pillar</label>
+          <select id="vault-pillar-select" class="form-control">
+            <option value="">All Pillars</option>
+            <option value="PILLAR_1_AI_LLM_AGENTS">Pillar 1: AI, LLMs &amp; Autonomous Agents</option>
+            <option value="PILLAR_2_SYSTEMS_KERNEL">Pillar 2: Systems, Kernel &amp; Low-Level</option>
+            <option value="PILLAR_3_INFRA_K8S_HOMELAB">Pillar 3: Infrastructure, K8s &amp; Homelab</option>
+            <option value="PILLAR_4_MATH_ML_THEORY">Pillar 4: Mathematics, ML &amp; Foundations</option>
+            <option value="PILLAR_5_SWE_CRAFT_CAREER">Pillar 5: Software Craftsmanship &amp; Career</option>
+            <option value="PILLAR_6_HUMANITIES_LIFE">Pillar 6: Humanities, Life &amp; Culture</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="vault-source-select" class="control-label">Source Type</label>
+          <select id="vault-source-select" class="form-control">
+            <option value="">All Sources</option>
+            <option value="hacker_news">Hacker News</option>
+            <option value="reddit">Reddit</option>
+            <option value="github">GitHub</option>
+            <option value="google_search">Google Search</option>
+            <option value="dictionary">Dictionary</option>
+            <option value="pdf_paper">PDF Paper</option>
+            <option value="video">Video</option>
+            <option value="article">Article</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="vault-search-input" class="control-label">Search Vault <kbd class="kbd-hint">/</kbd></label>
+          <input type="search" id="vault-search-input" class="form-control" placeholder="Search title or URL...">
+        </div>
+        <button type="button" id="clear-vault-filters-btn" class="btn-ghost">Clear Filters</button>
+        <button type="button" id="open-import-modal-btn" class="btn-primary">Import Safari Notes</button>
+      </div>
+
+      <div id="vault-results-count" class="results-meta tabular-nums" aria-live="polite">Displaying 0 items</div>
+
+      <div class="table-scroll-container table-scroll-bounded">
+        <table class="data-table" id="vault-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Source</th>
+              <th>Pillar</th>
+              <th>Epochs Present</th>
+              <th class="num-col">Cross-Epoch / Occurrences</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="vault-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tab 3: Personal Time Capsule -->
+    <section id="tab-capsule" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-capsule" tabindex="0" hidden>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Longitudinal Intellectual Taste Profile</h2>
+            <p class="card-subtitle">Cross-epoch distribution across the 6 Intellectual Pillars (2023_2024 Genesis, 2026_08_16 Bridge, 2026_11_06 Production)</p>
+          </div>
+        </div>
+        <div id="taste-profile-container" class="grid-3"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Technical Vocabulary Lexicon</h2>
+              <p class="card-subtitle">Personal technical terms and definitions cataloged across reading epochs</p>
+            </div>
+            <span id="vocab-count-badge" class="badge badge-epoch tabular-nums">0 terms</span>
+          </div>
+          <div class="table-scroll-container table-scroll-bounded">
+            <table class="data-table" id="vocab-table">
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>Definition / Context</th>
+                  <th>Epoch</th>
+                </tr>
+              </thead>
+              <tbody id="vocab-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Categorized Search Query Intents</h2>
+              <p class="card-subtitle">Technical inquiry and exploratory learning queries cataloged during reading sessions</p>
+            </div>
+            <div class="card-meta">
+              <span id="intents-count-badge" class="badge badge-pillar tabular-nums">0 intents</span>
+              <div class="filter-group">
+                <label for="intent-category-select" class="sr-only">Filter by Intent Category</label>
+                <select id="intent-category-select" class="form-control" aria-label="Filter by Intent Category">
+                  <option value="">All Categories</option>
+                  <option value="technical_learning">Technical Learning</option>
+                  <option value="vocabulary">Vocabulary</option>
+                  <option value="personal_life">Personal Life</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll-container table-scroll-bounded">
+            <table class="data-table" id="intents-table">
+              <thead>
+                <tr>
+                  <th>Query Intent</th>
+                  <th>Category</th>
+                  <th>Epoch</th>
+                </tr>
+              </thead>
+              <tbody id="intents-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: Macro Time Machine -->
+    <section id="tab-macro" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-macro" tabindex="0" hidden>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Global Meteorological Telemetry</h2>
+              <p class="card-subtitle">Historical weather observations across key global infrastructure hubs</p>
+            </div>
+          </div>
+          <div class="table-scroll-container">
+            <table class="data-table" id="weather-table">
+              <thead>
+                <tr>
+                  <th>City</th>
+                  <th>Condition</th>
+                  <th class="num-col">Temperature (&deg;C)</th>
+                  <th class="num-col">Humidity (%)</th>
+                  <th class="num-col">Pressure (hPa)</th>
+                </tr>
+              </thead>
+              <tbody id="weather-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Global Financial &amp; Equity Markets</h2>
+              <p class="card-subtitle">End-of-day equity prices and trading volume for benchmark assets</p>
+            </div>
+          </div>
+          <div class="table-scroll-container">
+            <table class="data-table" id="stocks-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th class="num-col">Close ($)</th>
+                  <th class="num-col">Open ($)</th>
+                  <th class="num-col">High ($)</th>
+                  <th class="num-col">Low ($)</th>
+                  <th class="num-col">Volume</th>
+                </tr>
+              </thead>
+              <tbody id="stocks-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <div class="modal" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" aria-describedby="import-modal-desc" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="import-modal-title">Import Safari Reading List Notes</h2>
+        <button type="button" class="modal-close" id="close-import-modal-btn" aria-label="Close import modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="import-modal-desc" class="card-subtitle">Paste raw export lines or Markdown links from Safari Reading List to ingest into the vault.</p>
+        <div class="filter-group">
+          <label for="import-epoch-select" class="control-label">Target Epoch</label>
+          <select id="import-epoch-select" class="form-control">
+            <option value="2026_11_06">2026_11_06 (Production Epoch)</option>
+            <option value="2026_08_16">2026_08_16 (Summer Bridge Epoch)</option>
+            <option value="2023_2024">2023_2024 (Genesis Epoch)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="import-text" class="control-label">Raw Export Text or URLs</label>
+          <textarea id="import-text" class="form-control" placeholder="Paste Safari Reading List URLs or text here..."></textarea>
+        </div>
+        <div id="import-feedback" class="import-feedback" role="status" aria-live="polite" hidden></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="cancel-import-btn" class="btn-secondary">Cancel</button>
+        <button type="button" id="submit-import-btn" class="btn-primary">Ingest into Vault</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="analysis-modal" role="dialog" aria-modal="true" aria-labelledby="analysis-modal-title" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="analysis-modal-title">Discussion Synthesis</h2>
+        <button type="button" class="modal-close" id="close-analysis-modal-btn" aria-label="Close analysis modal">&times;</button>
+      </div>
+      <div id="analysis-modal-body" class="modal-body" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script src="/static/views.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
