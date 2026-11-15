@@ -566,3 +566,44 @@ def _extract_function_body(source: str, function_name: str) -> str:
                 return source[brace_start : index + 1]
 
     return source[brace_start:]
+
+
+def test_app_js_gate3_focus_trap_import_state_and_loaders(app_js_content: str) -> None:
+    """Verify Gate 3 modal focus trapping, submit state lock, and loading skeleton invocations.
+
+    Pre-conditions:
+        - app_js_content fixture loaded from src/time_capsule/api/static/app.js.
+
+    Post-conditions:
+        - Confirms trapModalFocus exists and handleGlobalKeydown traps Tab and blocks global
+          shortcuts while a modal is open.
+        - Confirms submitImport disables the submit button, handles state-error, and closes the
+          modal before awaiting loadVaultItems().
+        - Confirms analyzeItem preserves lastFocusedElement across Retry clicks and loaders invoke
+          views loading renderers and update #intents-count-badge.
+    """
+    keydown_body = _extract_function_body(app_js_content, "handleGlobalKeydown")
+    assert "trapModalFocus" in keydown_body
+    assert 'event.key === "Tab"' in keydown_body
+    assert "if (openModal)" in keydown_body
+
+    submit_body = _extract_function_body(app_js_content, "submitImport")
+    assert "submitBtn.disabled = true" in submit_body
+    assert "submitBtn.disabled = false" in submit_body
+    assert "state-error" in submit_body
+    close_idx = submit_body.find("closeImportModal(true)")
+    load_idx = submit_body.find("await loadVaultItems()")
+    assert close_idx != -1 and load_idx != -1 and close_idx < load_idx
+
+    analyze_body = _extract_function_body(app_js_content, "analyzeItem")
+    assert "if (modal.hidden)" in analyze_body
+
+    assert "function setPillState(" in app_js_content
+    assert "renderTasteProfileLoading" in _extract_function_body(app_js_content, "loadTasteProfile")
+    assert "renderVocabLoading" in _extract_function_body(app_js_content, "loadVocab")
+    intents_body = _extract_function_body(app_js_content, "loadIntents")
+    assert "renderIntentsLoading" in intents_body
+    assert "intents-count-badge" in intents_body
+    macro_body = _extract_function_body(app_js_content, "loadMacro")
+    assert "renderWeatherLoading" in macro_body
+    assert "renderStocksLoading" in macro_body

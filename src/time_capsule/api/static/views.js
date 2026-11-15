@@ -98,19 +98,15 @@
     if (!container) return;
     container.setAttribute("aria-busy", "true");
     container.innerHTML =
-      '<div class="grid-2">' +
-        '<div class="skeleton-card">' +
-          '<div class="skeleton skeleton-line" style="width: 60%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 40%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 85%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 75%;"></div>' +
-        '</div>' +
-        '<div class="skeleton-card">' +
-          '<div class="skeleton skeleton-line" style="width: 50%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 45%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 80%;"></div>' +
-          '<div class="skeleton skeleton-line" style="width: 70%;"></div>' +
-        '</div>' +
+      '<div class="skeleton-card">' +
+        '<div class="skeleton skeleton-line skeleton-w-60"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-40"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-85"></div>' +
+      '</div>' +
+      '<div class="skeleton-card">' +
+        '<div class="skeleton skeleton-line skeleton-w-50"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-45"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-80"></div>' +
       '</div>';
   }
 
@@ -242,12 +238,14 @@
    */
   function renderAnalysisModalLoading(container) {
     if (!container) return;
+    container.setAttribute("aria-busy", "true");
     container.innerHTML =
       '<div class="state-loading skeleton-card">' +
-        '<div class="skeleton skeleton-line" style="width: 50%;"></div>' +
-        '<div class="skeleton skeleton-line" style="width: 80%;"></div>' +
-        '<div class="skeleton skeleton-line" style="width: 70%;"></div>' +
-        '<div class="skeleton skeleton-well" style="min-height: 140px;"></div>' +
+        '<p class="card-subtitle">Contacting DGX Spark vLLM engine...</p>' +
+        '<div class="skeleton skeleton-line skeleton-w-50"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-80"></div>' +
+        '<div class="skeleton skeleton-line skeleton-w-70"></div>' +
+        '<div class="skeleton skeleton-well skeleton-well-compact"></div>' +
       '</div>';
   }
 
@@ -259,6 +257,7 @@
    */
   function renderAnalysisModalResult(container, d) {
     if (!container) return;
+    container.setAttribute("aria-busy", "false");
     container.innerHTML = renderDiscussionCardHtml(d);
   }
 
@@ -272,12 +271,14 @@
    */
   function renderAnalysisModalError(container, errorMsg, itemId, itemTitle) {
     if (!container) return;
+    container.setAttribute("aria-busy", "false");
     container.innerHTML =
       '<div class="state-error" role="alert">' +
         '<p>Synthesis error: ' + escapeHtml(errorMsg) + '</p>' +
         '<div class="state-actions">' +
-          '<button type="button" class="btn-secondary btn-retry" onclick="analyzeItem(\'' +
-          escapeHtml(itemId || "") + '\', \'' + encodeURIComponent(itemTitle || "") + '\', this)">Retry Synthesis</button>' +
+          '<button type="button" class="btn-secondary btn-retry" data-item-id="' +
+          escapeHtml(itemId || "") + '" data-item-title="' + escapeHtml(itemTitle || "") +
+          '" onclick="analyzeItem(this.getAttribute(\'data-item-id\'), this.getAttribute(\'data-item-title\'), this)">Retry Synthesis</button>' +
         '</div>' +
       '</div>';
   }
@@ -331,7 +332,10 @@
   function renderMarkdownEmpty(container) {
     if (!container) return;
     container.setAttribute("aria-busy", "false");
-    container.textContent = "No markdown digest generated for this capsule date.";
+    container.innerHTML =
+      '<div class="state-empty">' +
+        '<p>No markdown digest generated for this capsule date.</p>' +
+      '</div>';
   }
 
   /**
@@ -346,6 +350,9 @@
     container.innerHTML =
       '<div class="state-error" role="alert">' +
         '<p>Failed to generate markdown: ' + escapeHtml(errorMsg) + '</p>' +
+        '<div class="state-actions">' +
+          '<button type="button" class="btn-secondary btn-retry" onclick="loadCapsuleDigest()">Retry</button>' +
+        '</div>' +
       '</div>';
   }
 
@@ -364,7 +371,7 @@
     if (!tbody) return;
     var rows = "";
     for (var i = 0; i < 6; i++) {
-      rows += '<tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>';
+      rows += '<tr><td colspan="7"><div class="skeleton skeleton-row skeleton-row-vault"></div></td></tr>';
     }
     tbody.innerHTML = rows;
   }
@@ -431,47 +438,59 @@
     }
 
     tbody.innerHTML = items.map(function (item) {
-      var titleText = escapeHtml(item.title || "Untitled");
-      var linkHtml = item.url
-        ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer">' + titleText + '</a>'
+      var titleText = escapeHtml(item.title || item.canonical_url || "Untitled");
+      var hrefUrl = item.canonical_url || item.url || "";
+      var linkHtml = hrefUrl
+        ? '<a href="' + escapeHtml(hrefUrl) + '" target="_blank" rel="noopener noreferrer">' + titleText + '</a>'
         : titleText;
 
-      var subtitleHtml = "";
-      if (item.search_query) {
-        subtitleHtml = '<div class="card-subtitle">' + escapeHtml(item.search_query) + '</div>';
+      var subParts = [];
+      if (item.domain) {
+        subParts.push('<span class="tabular-nums">' + escapeHtml(item.domain) + '</span>');
       }
+      if (item.search_query) {
+        subParts.push('Query: "' + escapeHtml(item.search_query) + '"');
+      }
+      var subtitleHtml = subParts.length > 0
+        ? '<div class="card-subtitle">' + subParts.join(" | ") + '</div>'
+        : "";
 
       var sourceBadge = renderSourceBadge(item.source_type);
-      var pillarBadge = '<span class="badge badge-pillar">' + escapeHtml(item.intellectual_pillar || item.pillar || "Unassigned") + '</span>';
+      var rawPillar = item.primary_pillar || (item.pillar_tags && item.pillar_tags[0]) ||
+        item.intellectual_pillar || item.pillar || "Unassigned";
+      var pillarBadge = '<span class="badge badge-pillar">' + escapeHtml(String(rawPillar).replace("PILLAR_", "")) + '</span>';
 
-      var firstEpoch = item.first_epoch || (item.epochs_present && item.epochs_present[0]) || "";
-      var epochBadge = '<span class="badge badge-epoch tabular-nums">' + escapeHtml(firstEpoch) + '</span>';
+      var epochsList = (item.epochs_present && item.epochs_present.length > 0)
+        ? item.epochs_present
+        : (item.first_epoch ? [item.first_epoch] : []);
+      var epochsHtml = '<div class="card-meta">' + epochsList.map(function (ep) {
+        return '<span class="badge badge-epoch tabular-nums">' + escapeHtml(ep) + '</span>';
+      }).join("") + '</div>';
 
-      var occurrences = item.total_occurrences || (item.epochs_present ? item.epochs_present.length : 1);
-      var evergreenBadge = item.is_evergreen_canon
-        ? '<span class="badge badge-canon">Evergreen Canon</span> '
-        : "";
+      var crossCount = item.cross_epoch_count || epochsList.length || 1;
+      var occurrences = item.total_occurrences || crossCount;
       var occurrencesCell =
-        '<td class="num-col">' +
-          evergreenBadge +
-          '<span class="tabular-nums">' + String(occurrences) + 'x</span>' +
+        '<td class="num-col tabular-nums">' +
+          String(crossCount) + ' ep / ' + String(occurrences) + 'x' +
         '</td>';
 
-      var statusBadge = item.enrichment_status
-        ? '<span class="badge">' + escapeHtml(item.enrichment_status) + '</span>'
-        : '<span class="badge">archived</span>';
+      var statusBadge = item.is_evergreen_canon
+        ? '<span class="badge badge-canon">Evergreen Canon</span>'
+        : (item.anchor_comment_id
+          ? '<span class="badge badge-hn tabular-nums">Anchored #' + escapeHtml(item.anchor_comment_id) + '</span>'
+          : '<span class="badge">Archived</span>');
 
       var actionBtn =
         '<button type="button" class="btn-secondary" data-item-id="' + escapeHtml(item.item_id) +
-        '" data-item-title="' + escapeHtml(item.title || "") +
-        '" onclick="analyzeItem(\'' + escapeHtml(item.item_id) + '\', \'' + encodeURIComponent(item.title || "") + '\', this)">Analyze via Spark</button>';
+        '" data-item-title="' + escapeHtml(item.title || item.canonical_url || "") +
+        '" onclick="analyzeItem(this.getAttribute(\'data-item-id\'), this.getAttribute(\'data-item-title\'), this)">Analyze via Spark</button>';
 
       return (
         '<tr>' +
           '<td>' + linkHtml + subtitleHtml + '</td>' +
           '<td>' + sourceBadge + '</td>' +
           '<td>' + pillarBadge + '</td>' +
-          '<td>' + epochBadge + '</td>' +
+          '<td>' + epochsHtml + '</td>' +
           occurrencesCell +
           '<td>' + statusBadge + '</td>' +
           '<td>' + actionBtn + '</td>' +
@@ -491,18 +510,19 @@
    */
   function renderTasteProfileLoading(container) {
     if (!container) return;
+    container.setAttribute("aria-busy", "true");
     container.innerHTML =
-      '<div class="skeleton-card">' +
-        '<div class="skeleton skeleton-line" style="width: 50%;"></div>' +
-        '<div class="skeleton skeleton-well" style="min-height: 140px;"></div>' +
+      '<div class="skeleton-card skeleton-card-compact">' +
+        '<div class="skeleton skeleton-line skeleton-w-50"></div>' +
+        '<div class="skeleton skeleton-well skeleton-well-compact"></div>' +
       '</div>' +
-      '<div class="skeleton-card">' +
-        '<div class="skeleton skeleton-line" style="width: 50%;"></div>' +
-        '<div class="skeleton skeleton-well" style="min-height: 140px;"></div>' +
+      '<div class="skeleton-card skeleton-card-compact">' +
+        '<div class="skeleton skeleton-line skeleton-w-50"></div>' +
+        '<div class="skeleton skeleton-well skeleton-well-compact"></div>' +
       '</div>' +
-      '<div class="skeleton-card">' +
-        '<div class="skeleton skeleton-line" style="width: 50%;"></div>' +
-        '<div class="skeleton skeleton-well" style="min-height: 140px;"></div>' +
+      '<div class="skeleton-card skeleton-card-compact">' +
+        '<div class="skeleton skeleton-line skeleton-w-50"></div>' +
+        '<div class="skeleton skeleton-well skeleton-well-compact"></div>' +
       '</div>';
   }
 
@@ -513,10 +533,12 @@
    */
   function renderTasteProfileEmpty(container) {
     if (!container) return;
+    container.setAttribute("aria-busy", "false");
     container.innerHTML =
-      '<div class="state-empty" style="grid-column: 1 / -1;">' +
+      '<div class="state-empty grid-span-full">' +
         '<p>No longitudinal taste profile records found.</p>' +
         '<div class="state-actions">' +
+          '<button type="button" class="btn-primary" onclick="openImportModal()">Import Safari Notes</button>' +
           '<button type="button" class="btn-secondary" onclick="loadTasteProfile()">Reload Taste Profile</button>' +
         '</div>' +
       '</div>';
@@ -530,8 +552,9 @@
    */
   function renderTasteProfileError(container, errorMsg) {
     if (!container) return;
+    container.setAttribute("aria-busy", "false");
     container.innerHTML =
-      '<div class="state-error" role="alert" style="grid-column: 1 / -1;">' +
+      '<div class="state-error grid-span-full" role="alert">' +
         '<p>Failed to load taste profile: ' + escapeHtml(errorMsg) + '</p>' +
         '<div class="state-actions">' +
           '<button type="button" class="btn-secondary btn-retry" onclick="loadTasteProfile()">Retry</button>' +
@@ -547,6 +570,7 @@
    */
   function renderTasteProfile(container, summary) {
     if (!container) return;
+    container.setAttribute("aria-busy", "false");
     if (!summary || !summary.epoch_breakdown) {
       renderTasteProfileEmpty(container);
       return;
@@ -567,15 +591,16 @@
 
       var rowsHtml = Object.keys(epochProfile).map(function (pillar) {
         var count = epochProfile[pillar] || 0;
-        var pct = totalItems > 0 ? ((count / totalItems) * 100).toFixed(1) : "0.0";
+        var pctNum = totalItems > 0 ? Math.min(100, (count / totalItems) * 100) : 0;
+        var pct = pctNum.toFixed(1);
         return (
           '<div class="taste-row">' +
             '<div class="taste-row-header">' +
-              '<span>' + escapeHtml(pillar) + '</span>' +
+              '<span>' + escapeHtml(String(pillar).replace("PILLAR_", "")) + '</span>' +
               '<span class="tabular-nums">' + String(count) + ' (' + pct + '%)</span>' +
             '</div>' +
             '<div class="taste-bar-track">' +
-              '<div class="taste-bar-fill" style="width: ' + pct + '%;"></div>' +
+              '<div class="taste-bar-fill" data-bar-pct="' + pct + '"></div>' +
             '</div>' +
           '</div>'
         );
@@ -584,13 +609,17 @@
       return (
         '<div class="card card-nested">' +
           '<div class="card-header">' +
-            '<h3 class="card-title">' + escapeHtml(epoch) + '</h3>' +
+            '<h3 class="card-title tabular-nums">' + escapeHtml(epoch) + '</h3>' +
             '<span class="badge badge-epoch tabular-nums">' + String(totalItems) + ' items</span>' +
           '</div>' +
           rowsHtml +
         '</div>'
       );
     }).join("");
+
+    container.querySelectorAll(".taste-bar-fill[data-bar-pct]").forEach(function (bar) {
+      bar.style.width = String(bar.getAttribute("data-bar-pct") || "0") + "%";
+    });
   }
 
   /**
@@ -598,7 +627,8 @@
    * @param {HTMLElement|null} tbody - Target table body element.
    * @returns {void}
    */
-  function renderVocabLoading(tbody) {
+  function renderVocabLoading(tbody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "true");
     if (!tbody) return;
     var rows = "";
     for (var i = 0; i < 5; i++) {
@@ -610,9 +640,11 @@
   /**
    * Render empty state for vocabulary table.
    * @param {HTMLElement|null} tbody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderVocabEmpty(tbody) {
+  function renderVocabEmpty(tbody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     tbody.innerHTML =
       '<tr>' +
@@ -628,9 +660,11 @@
    * Render error state for vocabulary table.
    * @param {HTMLElement|null} tbody - Target table body element.
    * @param {string} errorMsg - Error description.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderVocabError(tbody, errorMsg) {
+  function renderVocabError(tbody, errorMsg, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     tbody.innerHTML =
       '<tr>' +
@@ -649,12 +683,14 @@
    * Render nominal vocabulary lexicon rows.
    * @param {HTMLElement|null} tbody - Target table body element.
    * @param {Array<Object>} entries - VocabularyEntry objects.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderVocabRows(tbody, entries) {
+  function renderVocabRows(tbody, entries, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     if (!entries || entries.length === 0) {
-      renderVocabEmpty(tbody);
+      renderVocabEmpty(tbody, tableEl);
       return;
     }
     tbody.innerHTML = entries.map(function (e) {
@@ -673,9 +709,11 @@
   /**
    * Render loading skeleton for search intents table.
    * @param {HTMLElement|null} tbody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderIntentsLoading(tbody) {
+  function renderIntentsLoading(tbody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "true");
     if (!tbody) return;
     var rows = "";
     for (var i = 0; i < 5; i++) {
@@ -687,9 +725,11 @@
   /**
    * Render empty state for search intents table.
    * @param {HTMLElement|null} tbody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderIntentsEmpty(tbody) {
+  function renderIntentsEmpty(tbody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     tbody.innerHTML =
       '<tr>' +
@@ -708,9 +748,11 @@
    * Render error state for search intents table.
    * @param {HTMLElement|null} tbody - Target table body element.
    * @param {string} errorMsg - Error description.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderIntentsError(tbody, errorMsg) {
+  function renderIntentsError(tbody, errorMsg, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     tbody.innerHTML =
       '<tr>' +
@@ -729,12 +771,14 @@
    * Render nominal search query intent rows.
    * @param {HTMLElement|null} tbody - Target table body element.
    * @param {Array<Object>} intents - SearchQueryIntent objects.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderIntentsRows(tbody, intents) {
+  function renderIntentsRows(tbody, intents, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!tbody) return;
     if (!intents || intents.length === 0) {
-      renderIntentsEmpty(tbody);
+      renderIntentsEmpty(tbody, tableEl);
       return;
     }
     tbody.innerHTML = intents.map(function (i) {
@@ -757,9 +801,11 @@
   /**
    * Render loading skeleton for weather table.
    * @param {HTMLElement|null} weatherBody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderWeatherLoading(weatherBody) {
+  function renderWeatherLoading(weatherBody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "true");
     if (!weatherBody) return;
     var rows = "";
     for (var i = 0; i < 5; i++) {
@@ -771,9 +817,11 @@
   /**
    * Render empty state for weather table.
    * @param {HTMLElement|null} weatherBody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderWeatherEmpty(weatherBody) {
+  function renderWeatherEmpty(weatherBody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!weatherBody) return;
     weatherBody.innerHTML =
       '<tr>' +
@@ -789,9 +837,11 @@
    * Render error state for weather table.
    * @param {HTMLElement|null} weatherBody - Target table body element.
    * @param {string} errorMsg - Error description.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderWeatherError(weatherBody, errorMsg) {
+  function renderWeatherError(weatherBody, errorMsg, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!weatherBody) return;
     weatherBody.innerHTML =
       '<tr>' +
@@ -810,18 +860,20 @@
    * Render nominal rows for weather table.
    * @param {HTMLElement|null} weatherBody - Target table body element.
    * @param {Array<Object>} weather - Array of weather records.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderWeatherRows(weatherBody, weather) {
+  function renderWeatherRows(weatherBody, weather, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!weatherBody) return;
     if (!weather || weather.length === 0) {
-      renderWeatherEmpty(weatherBody);
+      renderWeatherEmpty(weatherBody, tableEl);
       return;
     }
     weatherBody.innerHTML = weather.map(function (w) {
       var city = escapeHtml(w.city || "N/A");
       var cond = escapeHtml(w.weather_main || w.weather_description || "Clear");
-      var temp = w.temp !== undefined ? String(w.temp) + "C" : "N/A";
+      var temp = w.temp !== undefined ? String(w.temp) + "&deg;C" : "N/A";
       var hum = w.humidity !== undefined ? String(w.humidity) + "%" : "N/A";
       var pres = w.pressure !== undefined ? String(w.pressure) + " hPa" : "N/A";
       return (
@@ -839,9 +891,11 @@
   /**
    * Render loading skeleton for stocks table.
    * @param {HTMLElement|null} stocksBody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderStocksLoading(stocksBody) {
+  function renderStocksLoading(stocksBody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "true");
     if (!stocksBody) return;
     var rows = "";
     for (var i = 0; i < 5; i++) {
@@ -853,9 +907,11 @@
   /**
    * Render empty state for stocks table.
    * @param {HTMLElement|null} stocksBody - Target table body element.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderStocksEmpty(stocksBody) {
+  function renderStocksEmpty(stocksBody, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!stocksBody) return;
     stocksBody.innerHTML =
       '<tr>' +
@@ -871,9 +927,11 @@
    * Render error state for stocks table.
    * @param {HTMLElement|null} stocksBody - Target table body element.
    * @param {string} errorMsg - Error description.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderStocksError(stocksBody, errorMsg) {
+  function renderStocksError(stocksBody, errorMsg, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!stocksBody) return;
     stocksBody.innerHTML =
       '<tr>' +
@@ -892,12 +950,14 @@
    * Render nominal rows for stocks table.
    * @param {HTMLElement|null} stocksBody - Target table body element.
    * @param {Array<Object>} stocks - Array of stock records.
+   * @param {HTMLElement|null} [tableEl] - Optional parent table element.
    * @returns {void}
    */
-  function renderStockRows(stocksBody, stocks) {
+  function renderStockRows(stocksBody, stocks, tableEl) {
+    if (tableEl) tableEl.setAttribute("aria-busy", "false");
     if (!stocksBody) return;
     if (!stocks || stocks.length === 0) {
-      renderStocksEmpty(stocksBody);
+      renderStocksEmpty(stocksBody, tableEl);
       return;
     }
     stocksBody.innerHTML = stocks.map(function (s) {
@@ -909,7 +969,7 @@
       var volume = s.volume !== undefined ? Number(s.volume).toLocaleString() : "N/A";
       return (
         '<tr>' +
-          '<td><span class="badge badge-github font-mono tabular-nums">' + ticker + '</span></td>' +
+          '<td><span class="badge badge-github tabular-nums">' + ticker + '</span></td>' +
           '<td class="num-col tabular-nums">' + close + '</td>' +
           '<td class="num-col tabular-nums">' + open + '</td>' +
           '<td class="num-col tabular-nums">' + high + '</td>' +
@@ -925,11 +985,13 @@
    * @param {HTMLElement|null} weatherBody - Weather table body.
    * @param {HTMLElement|null} stocksBody - Stocks table body.
    * @param {string} errorMsg - Error description.
+   * @param {HTMLElement|null} [weatherTableEl] - Optional weather table element.
+   * @param {HTMLElement|null} [stocksTableEl] - Optional stocks table element.
    * @returns {void}
    */
-  function renderMacroError(weatherBody, stocksBody, errorMsg) {
-    renderWeatherError(weatherBody, errorMsg);
-    renderStocksError(stocksBody, errorMsg);
+  function renderMacroError(weatherBody, stocksBody, errorMsg, weatherTableEl, stocksTableEl) {
+    renderWeatherError(weatherBody, errorMsg, weatherTableEl);
+    renderStocksError(stocksBody, errorMsg, stocksTableEl);
   }
 
   /* -------------------------------------------------------------------------

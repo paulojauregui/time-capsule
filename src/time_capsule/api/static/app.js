@@ -187,28 +187,88 @@
   }
 
   /**
-   * Global keyboard shortcut controller (/, Cmd/Ctrl+K, Escape).
+   * Trap Tab keyboard navigation inside an active modal dialog.
+   * @param {Element|null} modalEl - Visible modal dialog element.
+   * @param {KeyboardEvent} event - Keydown event for Tab.
+   * @returns {void}
+   */
+  function trapModalFocus(modalEl, event) {
+    if (!modalEl || typeof modalEl.querySelectorAll !== "function") {
+      return;
+    }
+    var selector = [
+      "a[href]",
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])"
+    ].join(", ");
+    var nodes = modalEl.querySelectorAll(selector);
+    var focusable = [];
+    for (var i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node.hidden && (typeof node.closest !== "function" || !node.closest("[hidden]"))) {
+        focusable.push(node);
+      }
+    }
+    if (focusable.length === 0) {
+      event.preventDefault();
+      if (typeof modalEl.focus === "function") {
+        modalEl.focus();
+      }
+      return;
+    }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    var active = typeof document !== "undefined" ? document.activeElement : null;
+    var insideModal = typeof modalEl.contains === "function" && modalEl.contains(active);
+
+    if (event.shiftKey) {
+      if (active === first || !insideModal) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !insideModal) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  /**
+   * Global keyboard shortcut controller (/, Cmd/Ctrl+K, Escape, Tab trap).
    * @param {KeyboardEvent} event - Window-level keydown event.
    * @returns {void}
    */
   function handleGlobalKeydown(event) {
     var active = typeof document !== "undefined" ? document.activeElement : null;
+    var importModal = el("import-modal");
+    var analysisModal = el("analysis-modal");
+    var openModal = null;
+
+    if (importModal && !importModal.hidden) {
+      openModal = importModal;
+    } else if (analysisModal && !analysisModal.hidden) {
+      openModal = analysisModal;
+    }
+
+    if (openModal) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (openModal === importModal) {
+          closeImportModal();
+        } else {
+          closeAnalysisModal();
+        }
+        return;
+      }
+      if (event.key === "Tab") {
+        trapModalFocus(openModal, event);
+      }
+      return;
+    }
 
     if (event.key === "Escape") {
-      var importModal = el("import-modal");
-      var analysisModal = el("analysis-modal");
-
-      if (importModal && !importModal.hidden) {
-        event.preventDefault();
-        closeImportModal();
-        return;
-      }
-      if (analysisModal && !analysisModal.hidden) {
-        event.preventDefault();
-        closeAnalysisModal();
-        return;
-      }
-
       var searchInput = el("vault-search-input");
       if (active && active.id === "vault-search-input" && searchInput && searchInput.value !== "") {
         event.preventDefault();
@@ -253,6 +313,13 @@
     if (feedback) {
       feedback.hidden = true;
       feedback.textContent = "";
+      feedback.classList.remove("state-error");
+    }
+    var submitBtn = el("submit-import-btn");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute("aria-busy");
+      submitBtn.textContent = "Ingest into Vault";
     }
 
     var target = el("import-text") || el("import-epoch-select");
@@ -264,9 +331,10 @@
 
   /**
    * Close the Safari import modal and restore the previously focused control.
+   * @param {boolean} [silent] - Suppress generic close announcement when followed by a specific announcement.
    * @returns {void}
    */
-  function closeImportModal() {
+  function closeImportModal(silent) {
     var modal = el("import-modal");
     if (!modal) {
       return;
@@ -274,11 +342,19 @@
     modal.hidden = true;
     modal.classList.remove("active");
 
-    if (appState.lastFocusedElement && typeof appState.lastFocusedElement.focus === "function") {
+    if (appState.lastFocusedElement && typeof appState.lastFocusedElement.focus === "function" &&
+      (typeof document === "undefined" || !document.contains || document.contains(appState.lastFocusedElement))) {
       appState.lastFocusedElement.focus();
+    } else {
+      var fallbackTrigger = el("open-import-btn");
+      if (fallbackTrigger && typeof fallbackTrigger.focus === "function") {
+        fallbackTrigger.focus();
+      }
     }
     appState.lastFocusedElement = null;
-    announceStatus("Import dialog closed.");
+    if (!silent) {
+      announceStatus("Import dialog closed.");
+    }
   }
 
   /**
@@ -297,6 +373,7 @@
     if (!text || text.trim() === "") {
       if (feedback) {
         feedback.hidden = false;
+        feedback.classList.add("state-error");
         feedback.textContent = "Please paste at least one URL or Markdown link to import.";
       }
       announceStatus("Import rejected: no URLs provided.");
@@ -305,9 +382,12 @@
 
     if (feedback) {
       feedback.hidden = false;
+      feedback.classList.remove("state-error");
       feedback.textContent = "Importing...";
     }
     if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Importing...";
       submitBtn.setAttribute("aria-busy", "true");
     }
 
@@ -324,24 +404,34 @@
       var imported = String(data.imported_raw_count || 0);
 
       if (feedback) {
+        feedback.classList.remove("state-error");
         feedback.textContent = "Imported " + imported + " raw links into epoch " + epoch + ".";
       }
       if (textarea) {
         textarea.value = "";
       }
-      announceStatus("Imported " + imported + " Safari reading list links into the vault.");
+      closeImportModal(true);
       await loadVaultItems();
       await refreshHeaderPills();
-      closeImportModal();
+      if (typeof document !== "undefined" && (!document.activeElement || document.activeElement === document.body)) {
+        var vaultTrigger = el("open-import-btn");
+        if (vaultTrigger && typeof vaultTrigger.focus === "function") {
+          vaultTrigger.focus();
+        }
+      }
+      announceStatus("Imported " + imported + " Safari reading list links into the vault.");
     } catch (error) {
       var message = error && error.message ? error.message : "Unknown import error";
       if (feedback) {
         feedback.hidden = false;
+        feedback.classList.add("state-error");
         feedback.textContent = "Import error: " + message;
       }
       announceStatus("Vault import failed: " + message);
     } finally {
       if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Ingest into Vault";
         submitBtn.removeAttribute("aria-busy");
       }
     }
@@ -359,7 +449,12 @@
     if (!modal) {
       return;
     }
-    appState.lastFocusedElement = triggerEl || document.activeElement;
+    if (modal.hidden) {
+      var candidate = triggerEl || (typeof document !== "undefined" ? document.activeElement : null);
+      if (candidate && (typeof modal.contains !== "function" || !modal.contains(candidate))) {
+        appState.lastFocusedElement = candidate;
+      }
+    }
 
     modal.hidden = false;
     modal.classList.add("active");
@@ -433,10 +528,34 @@
   }
 
   /**
+   * Apply a semantic pill state class while clearing any previous status class.
+   * @param {Element|null} pillEl - Header telemetry pill element.
+   * @param {string} stateClass - Target CSS pill modifier class.
+   * @returns {void}
+   */
+  function setPillState(pillEl, stateClass) {
+    if (!pillEl || !pillEl.classList) {
+      return;
+    }
+    pillEl.classList.remove(
+      "pill-nominal",
+      "pill-green",
+      "pill-degraded",
+      "pill-amber",
+      "pill-error",
+      "pill-red"
+    );
+    if (stateClass) {
+      pillEl.classList.add(stateClass);
+    }
+  }
+
+  /**
    * Fetch /ready and update the header telemetry pills.
+   * @param {boolean} [healthOk=true] - Whether the /healthz probe succeeded during init.
    * @returns {Promise<void>}
    */
-  async function refreshHeaderPills() {
+  async function refreshHeaderPills(healthOk) {
     try {
       var response = await fetch("/ready");
       if (!response.ok) {
@@ -445,8 +564,13 @@
       var data = await response.json();
       var service = el("service-status");
       if (service) {
-        service.textContent = "Service: Nominal";
-        service.classList.add("pill-nominal");
+        if (healthOk === false) {
+          service.textContent = "Service: Degraded";
+          setPillState(service, "pill-degraded");
+        } else {
+          service.textContent = "Service: Nominal";
+          setPillState(service, "pill-nominal");
+        }
       }
       var vaultPill = el("vault-count-pill");
       if (vaultPill) {
@@ -460,7 +584,7 @@
       var serviceErr = el("service-status");
       if (serviceErr) {
         serviceErr.textContent = "Service: Degraded";
-        serviceErr.classList.add("pill-degraded");
+        setPillState(serviceErr, "pill-degraded");
       }
     }
   }
@@ -470,23 +594,28 @@
    * @returns {Promise<void>}
    */
   async function initDashboard() {
+    var healthOk = false;
+    var service = el("service-status");
     try {
       var healthResponse = await fetch("/healthz");
+      if (!healthResponse.ok) {
+        throw new Error("Health probe responded HTTP " + String(healthResponse.status));
+      }
       var health = await healthResponse.json();
-      var service = el("service-status");
+      healthOk = Boolean(health && health.status === "ok");
       if (service) {
-        service.textContent = health && health.status === "ok"
-          ? "Service: Nominal"
-          : "Service: Degraded";
+        service.textContent = healthOk ? "Service: Nominal" : "Service: Degraded";
+        setPillState(service, healthOk ? "pill-nominal" : "pill-degraded");
       }
     } catch (error) {
-      var serviceErr = el("service-status");
-      if (serviceErr) {
-        serviceErr.textContent = "Service: Degraded";
+      healthOk = false;
+      if (service) {
+        service.textContent = "Service: Degraded";
+        setPillState(service, "pill-degraded");
       }
     }
 
-    await refreshHeaderPills();
+    await refreshHeaderPills(healthOk);
     switchTab("digest", false);
     await loadCapsuleDigest();
     announceStatus("Dashboard initialized.");
@@ -500,9 +629,13 @@
     var views = window.TimeCapsuleViews;
     var discussionContainer = el("discussions-container");
     var markdownContainer = el("markdown-preview");
+    var copyStatus = el("copy-status");
     var dateInput = el("capsule-date-input");
     var capsuleDate = dateInput && dateInput.value ? dateInput.value : "2026-11-06";
 
+    if (copyStatus) {
+      copyStatus.textContent = "";
+    }
     if (views && typeof views.renderDiscussionsLoading === "function") {
       views.renderDiscussionsLoading(discussionContainer);
     }
@@ -543,6 +676,8 @@
         }
       } else if (discussions.length > 0 && discussions[0].model_used) {
         updateModelStatus(discussions[0].model_used);
+      } else {
+        updateModelStatus(NOMINAL_MODEL_LABEL);
       }
 
       announceStatus("Loaded " + String(discussions.length) + " discussion highlights for " + capsuleDate + ".");
@@ -675,9 +810,24 @@
    * Load the longitudinal taste profile summary.
    * @returns {Promise<void>}
    */
+  /**
+   * Resolve the enclosing table element for a table body when available.
+   * @param {Element|null} tbody - Table body element.
+   * @returns {Element|null} The ancestor table element or null.
+   */
+  function tableOf(tbody) {
+    if (!tbody || typeof tbody.closest !== "function") {
+      return null;
+    }
+    return tbody.closest("table");
+  }
+
   async function loadTasteProfile() {
     var container = el("taste-profile-container");
     var views = window.TimeCapsuleViews;
+    if (views && typeof views.renderTasteProfileLoading === "function") {
+      views.renderTasteProfileLoading(container);
+    }
     try {
       var response = await fetch("/api/v1/epochs/summary");
       if (!response.ok) {
@@ -705,7 +855,11 @@
    */
   async function loadVocab() {
     var tbody = el("vocab-table-body");
+    var vocabTable = tableOf(tbody);
     var views = window.TimeCapsuleViews;
+    if (views && typeof views.renderVocabLoading === "function") {
+      views.renderVocabLoading(tbody, vocabTable);
+    }
     try {
       var response = await fetch("/api/v1/vocabulary");
       if (!response.ok) {
@@ -718,13 +872,13 @@
         badge.textContent = String(payload.count) + " terms";
       }
       if (views && typeof views.renderVocabRows === "function") {
-        views.renderVocabRows(tbody, entries);
+        views.renderVocabRows(tbody, entries, vocabTable);
       }
       announceStatus("Vocabulary lexicon loaded with " + String(payload.count) + " terms.");
     } catch (error) {
       var message = error && error.message ? error.message : "Unknown vocabulary error";
       if (views && typeof views.renderVocabError === "function") {
-        views.renderVocabError(tbody, message);
+        views.renderVocabError(tbody, message, vocabTable);
       }
       announceStatus("Vocabulary load failed: " + message);
     }
@@ -736,7 +890,11 @@
    */
   async function loadIntents() {
     var tbody = el("intents-table-body");
+    var intentsTable = tableOf(tbody);
     var views = window.TimeCapsuleViews;
+    if (views && typeof views.renderIntentsLoading === "function") {
+      views.renderIntentsLoading(tbody, intentsTable);
+    }
     var category = valueOf("intent-category-select");
     var query = category ? "?category=" + encodeURIComponent(category) : "";
     try {
@@ -746,14 +904,18 @@
       }
       var payload = await response.json();
       var intents = payload.intents || [];
+      var badge = el("intents-count-badge");
+      if (badge) {
+        badge.textContent = String(payload.count) + " intents";
+      }
       if (views && typeof views.renderIntentsRows === "function") {
-        views.renderIntentsRows(tbody, intents);
+        views.renderIntentsRows(tbody, intents, intentsTable);
       }
       announceStatus("Search intents loaded with " + String(payload.count) + " entries.");
     } catch (error) {
       var message = error && error.message ? error.message : "Unknown intents error";
       if (views && typeof views.renderIntentsError === "function") {
-        views.renderIntentsError(tbody, message);
+        views.renderIntentsError(tbody, message, intentsTable);
       }
       announceStatus("Search intents failed: " + message);
     }
@@ -779,7 +941,16 @@
   async function loadMacro() {
     var weatherBody = el("weather-table-body");
     var stocksBody = el("stocks-table-body");
+    var weatherTable = tableOf(weatherBody);
+    var stocksTable = tableOf(stocksBody);
     var views = window.TimeCapsuleViews;
+
+    if (views && typeof views.renderWeatherLoading === "function") {
+      views.renderWeatherLoading(weatherBody, weatherTable);
+    }
+    if (views && typeof views.renderStocksLoading === "function") {
+      views.renderStocksLoading(stocksBody, stocksTable);
+    }
 
     try {
       var response = await fetch("/api/v1/capsule/" + encodeURIComponent(valueOf("capsule-date-input") || "2026-11-06"));
@@ -791,17 +962,17 @@
       var stocks = snapshot.stock_records || [];
 
       if (views && typeof views.renderWeatherRows === "function") {
-        views.renderWeatherRows(weatherBody, weather);
+        views.renderWeatherRows(weatherBody, weather, weatherTable);
       }
       if (views && typeof views.renderStockRows === "function") {
-        views.renderStockRows(stocksBody, stocks);
+        views.renderStockRows(stocksBody, stocks, stocksTable);
       }
       announceStatus("Macro telemetry loaded: " + String(weather.length) + " cities, " +
         String(stocks.length) + " tickers.");
     } catch (error) {
       var message = error && error.message ? error.message : "Unknown macro error";
       if (views && typeof views.renderMacroError === "function") {
-        views.renderMacroError(weatherBody, stocksBody, message);
+        views.renderMacroError(weatherBody, stocksBody, message, weatherTable, stocksTable);
       }
       announceStatus("Macro telemetry failed: " + message);
     }

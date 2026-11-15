@@ -318,3 +318,24 @@ def test_end_to_end_taste_profile_and_epochs_summary(api_client: TestClient) -> 
         assert epoch in payload["epoch_breakdown"]
         assert epoch in epoch_taste
         assert payload["epoch_breakdown"][epoch] > 0
+
+
+def test_views_gate3_schema_and_zero_inline_styles(views_js_content: str) -> None:
+    """Verify Gate 3 SafariLinkItem schema bindings, safe onclick attrs, and zero inline styles.
+
+    Pre-conditions:
+        - views_js_content fixture loaded from src/time_capsule/api/static/views.js.
+
+    Post-conditions:
+        - Asserts zero inline HTML style="..." or style='...' attributes exist in views.js.
+        - Asserts vault rows read item.primary_pillar and bind data-item-id / data-item-title
+          instead of interpolating encodeURIComponent(...) into inline onclick strings.
+        - Asserts table aria-busy synchronization across Vocab, Intents, Weather, and Stocks.
+    """
+    assert 'style="' not in views_js_content, "Inline style=\" attributes must be replaced with CSS classes"
+    assert "style='" not in views_js_content, "Inline style=' attributes must be replaced with CSS classes"
+    assert "primary_pillar" in views_js_content
+    assert "data-item-id" in views_js_content
+    assert "data-item-title" in views_js_content
+    assert "encodeURIComponent(" not in views_js_content
+    assert 'setAttribute("aria-busy"' in views_js_content

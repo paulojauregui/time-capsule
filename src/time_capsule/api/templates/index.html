@@ -17,10 +17,10 @@
       <p class="header-subtitle">Longitudinal 3-Epoch Engineering Observatory &amp; Autonomous Reading Vault</p>
     </div>
     <div class="status-pills">
-      <span id="service-status" class="pill pill-nominal tabular-nums">Service: Nominal</span>
-      <span id="vault-count-pill" class="pill tabular-nums">Vault: -- items</span>
+      <span id="service-status" class="pill pill-nominal tabular-nums">Service: Checking...</span>
+      <span id="vault-count-pill" class="pill tabular-nums">Vault: Loading...</span>
       <span id="evergreen-count-pill" class="pill pill-canon tabular-nums">Evergreen Canon: -- items</span>
-      <span id="model-status-pill" class="pill tabular-nums">Model: DGX Spark</span>
+      <span id="model-status-pill" class="pill pill-nominal tabular-nums">Model: Qwen3.8-Flash-Next-FP4-Local</span>
     </div>
   </header>
 
@@ -45,7 +45,7 @@
         </div>
         <button type="button" id="load-capsule-btn" class="btn-primary">Load Capsule</button>
         <button type="button" id="copy-digest-btn" class="btn-secondary">Copy Digest</button>
-        <span id="copy-status" class="results-meta tabular-nums" role="status" aria-live="polite"></span>
+        <span id="copy-status" class="results-meta tabular-nums"></span>
       </div>
 
       <div class="grid-2">
@@ -56,7 +56,7 @@
               <p class="card-subtitle">Local DGX Spark LLM synthesis across top Hacker News &amp; Reddit engineering threads</p>
             </div>
           </div>
-          <div id="discussions-container" aria-busy="false" class="workspace-main"></div>
+          <div id="discussions-container" aria-busy="false" class="discussions-stack"></div>
         </div>
 
         <div class="card">
@@ -67,7 +67,7 @@
             </div>
             <button type="button" id="copy-digest-secondary-btn" class="btn-secondary">Copy Markdown</button>
           </div>
-          <pre id="markdown-preview" aria-busy="false" class="markdown-preview"></pre>
+          <div id="markdown-preview" aria-busy="false" class="markdown-preview"></div>
         </div>
       </div>
     </section>
@@ -95,12 +95,12 @@
           <label for="vault-pillar-select" class="control-label">Intellectual Pillar</label>
           <select id="vault-pillar-select" class="form-control">
             <option value="">All Pillars</option>
-            <option value="PILLAR_1_AI_LLM_AGENTS">Pillar 1: AI, LLM &amp; Agents</option>
-            <option value="PILLAR_2_SYSTEMS_LINUX_PERF">Pillar 2: Systems, Linux &amp; Perf</option>
-            <option value="PILLAR_3_DISTRIBUTED_STORAGE">Pillar 3: Distributed Storage</option>
-            <option value="PILLAR_4_FINANCIAL_CRYPTO">Pillar 4: Financial &amp; Crypto</option>
-            <option value="PILLAR_5_SECURITY_NETWORKING">Pillar 5: Security &amp; Networking</option>
-            <option value="PILLAR_6_HUMANITIES_LIFE">Pillar 6: Humanities &amp; Life</option>
+            <option value="PILLAR_1_AI_LLM_AGENTS">Pillar 1: AI, LLMs &amp; Autonomous Agents</option>
+            <option value="PILLAR_2_SYSTEMS_KERNEL">Pillar 2: Systems, Kernel &amp; Low-Level</option>
+            <option value="PILLAR_3_INFRA_K8S_HOMELAB">Pillar 3: Infrastructure, K8s &amp; Homelab</option>
+            <option value="PILLAR_4_MATH_ML_THEORY">Pillar 4: Mathematics, ML &amp; Foundations</option>
+            <option value="PILLAR_5_SWE_CRAFT_CAREER">Pillar 5: Software Craftsmanship &amp; Career</option>
+            <option value="PILLAR_6_HUMANITIES_LIFE">Pillar 6: Humanities, Life &amp; Culture</option>
           </select>
         </div>
         <div class="filter-group">
@@ -134,7 +134,7 @@
               <th>Title</th>
               <th>Source</th>
               <th>Pillar</th>
-              <th>First Epoch</th>
+              <th>Epochs Present</th>
               <th class="num-col">Cross-Epoch / Occurrences</th>
               <th>Status</th>
               <th>Actions</th>
@@ -186,14 +186,17 @@
               <h2 class="card-title">Categorized Search Query Intents</h2>
               <p class="card-subtitle">Technical inquiry and exploratory learning queries cataloged during reading sessions</p>
             </div>
-            <div class="filter-group">
-              <label for="intent-category-select" class="sr-only">Filter by Intent Category</label>
-              <select id="intent-category-select" class="form-control" aria-label="Filter by Intent Category">
-                <option value="">All Categories</option>
-                <option value="technical_learning">Technical Learning</option>
-                <option value="vocabulary">Vocabulary</option>
-                <option value="personal_life">Personal Life</option>
-              </select>
+            <div class="card-meta">
+              <span id="intents-count-badge" class="badge badge-pillar tabular-nums">0 intents</span>
+              <div class="filter-group">
+                <label for="intent-category-select" class="sr-only">Filter by Intent Category</label>
+                <select id="intent-category-select" class="form-control" aria-label="Filter by Intent Category">
+                  <option value="">All Categories</option>
+                  <option value="technical_learning">Technical Learning</option>
+                  <option value="vocabulary">Vocabulary</option>
+                  <option value="personal_life">Personal Life</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="table-scroll-container table-scroll-bounded">
@@ -228,7 +231,7 @@
                 <tr>
                   <th>City</th>
                   <th>Condition</th>
-                  <th class="num-col">Temperature (C)</th>
+                  <th class="num-col">Temperature (&deg;C)</th>
                   <th class="num-col">Humidity (%)</th>
                   <th class="num-col">Pressure (hPa)</th>
                 </tr>

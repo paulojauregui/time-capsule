@@ -28,6 +28,28 @@ body {
   min-height: 100vh;
 }
 
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--accent-text);
+  background-color: var(--bg-canvas);
+  padding: 0.125rem var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
 .app-shell {
   max-width: 1600px;
   margin: 0 auto;
@@ -383,6 +405,8 @@ textarea {
 }
 
 .btn-retry:hover {
+  background-color: var(--status-error-bg);
+  border-color: var(--status-error-border);
   opacity: 0.85;
 }
 
@@ -820,10 +844,29 @@ table.data-table tr:hover td {
   gap: var(--space-4);
 }
 
+.discussions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 280px;
+}
+
+.grid-span-full {
+  grid-column: 1 / -1;
+}
+
+.skeleton-card-compact {
+  min-height: 220px;
+}
+
 .skeleton-row {
   height: 44px;
   width: 100%;
   border-radius: var(--radius-sm);
+}
+
+.skeleton-row-vault {
+  height: 48px;
 }
 
 .skeleton-line {
@@ -832,10 +875,46 @@ table.data-table tr:hover td {
   border-radius: var(--radius-sm);
 }
 
+.skeleton-w-40 {
+  width: 40%;
+}
+
+.skeleton-w-45 {
+  width: 45%;
+}
+
+.skeleton-w-50 {
+  width: 50%;
+}
+
+.skeleton-w-60 {
+  width: 60%;
+}
+
+.skeleton-w-70 {
+  width: 70%;
+}
+
+.skeleton-w-75 {
+  width: 75%;
+}
+
+.skeleton-w-80 {
+  width: 80%;
+}
+
+.skeleton-w-85 {
+  width: 85%;
+}
+
 .skeleton-well {
   min-height: 260px;
   width: 100%;
   border-radius: var(--radius-md);
+}
+
+.skeleton-well-compact {
+  min-height: 140px;
 }
 
 /* 9. Accessible Modals (role="dialog") */
@@ -919,6 +998,15 @@ table.data-table tr:hover td {
   border-radius: var(--radius-md);
   background-color: var(--bg-surface-2);
   border: 1px solid var(--border-subtle);
+}
+
+.import-feedback.state-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+  border-color: var(--status-error-border);
+  text-align: left;
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
 }
 
 /* 10. Responsive Media Queries & Reduced Motion */

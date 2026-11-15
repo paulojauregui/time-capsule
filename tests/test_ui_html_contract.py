@@ -10,11 +10,14 @@ Post-conditions:
       zero inline styles, zero inline scripts, and backward compatibility strings.
 """
 
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from time_capsule.models import IntellectualPillar
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "src" / "time_capsule" / "api" / "templates"
 INDEX_HTML_PATH = TEMPLATES_DIR / "index.html"
@@ -435,3 +438,58 @@ def test_external_stylesheet_and_script_links(parsed_html: SemanticHTMLContractP
     script_srcs = [script.get("src") for script in scripts]
     assert "/static/views.js" in script_srcs, "Missing script src for /static/views.js"
     assert "/static/app.js" in script_srcs, "Missing script src for /static/app.js"
+
+
+def test_vault_pillar_select_matches_model_enum(html_content: str) -> None:
+    """Verify #vault-pillar-select option values match IntellectualPillar enum values.
+
+    Pre-conditions:
+        - html_content fixture loaded from src/time_capsule/api/templates/index.html.
+        - time_capsule.models.IntellectualPillar defines the canonical pillar identifiers.
+
+    Post-conditions:
+        - Confirms every IntellectualPillar member value appears as an <option> value
+          inside #vault-pillar-select.
+    """
+    match = re.search(
+        r'<select[^>]*id="vault-pillar-select"[^>]*>(.*?)</select>',
+        html_content,
+        flags=re.DOTALL,
+    )
+    assert match is not None, "Missing #vault-pillar-select element"
+    select_body = match.group(1)
+    option_values = set(re.findall(r'<option\s+value="([^"]*)"', select_body))
+    for member in IntellectualPillar:
+        assert member.value in option_values, (
+            f"Missing IntellectualPillar enum option value: {member.value}"
+        )
+
+
+def test_intents_count_badge_and_copy_status_live_region_fix(
+    parsed_html: SemanticHTMLContractParser,
+) -> None:
+    """Verify Gate 3 HTML refinements for #intents-count-badge, #copy-status, and #markdown-preview.
+
+    Pre-conditions:
+        - parsed_html fixture populated.
+
+    Post-conditions:
+        - Confirms #intents-count-badge is present.
+        - Confirms #copy-status does not declare redundant aria-live or role=status attributes.
+        - Confirms #markdown-preview is a <div> container rather than <pre>.
+        - Confirms #discussions-container uses .discussions-stack.
+    """
+    assert "intents-count-badge" in parsed_html.by_id
+
+    copy_status = parsed_html.by_id.get("copy-status")
+    assert copy_status is not None
+    assert copy_status.get("aria-live") is None
+    assert copy_status.get("role") is None
+
+    markdown_preview = parsed_html.by_id.get("markdown-preview")
+    assert markdown_preview is not None
+    assert markdown_preview.tag == "div"
+
+    discussions = parsed_html.by_id.get("discussions-container")
+    assert discussions is not None
+    assert "discussions-stack" in (discussions.get("class") or "")

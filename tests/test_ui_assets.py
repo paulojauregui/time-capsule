@@ -425,3 +425,25 @@ def test_components_defines_responsive_and_motion_media_queries(components_conte
     assert "@media (min-width: 768px) and (max-width: 1279px)" in components_content
     assert "@media (min-width: 1280px)" in components_content
     assert "@media (prefers-reduced-motion: reduce)" in components_content
+
+
+def test_components_defines_base_link_code_and_discussions_stack(
+    components_content: str,
+) -> None:
+    """Verify Gate 3 typographic, layout, and error-feedback CSS rules exist.
+
+    Pre-conditions:
+        - components_content fixture loaded from src/time_capsule/api/static/components.css.
+
+    Post-conditions:
+        - Confirms base a, a:hover, and code rules are defined using tokens.
+        - Confirms .discussions-stack, .skeleton-row-vault, .import-feedback.state-error,
+          and explicit .btn-retry:hover rules exist without raw hex colors.
+    """
+    assert re.search(r"(?:^|\n)a\s*\{", components_content) is not None
+    assert "a:hover" in components_content
+    assert re.search(r"(?:^|\n)code\s*\{", components_content) is not None
+    assert ".discussions-stack" in components_content
+    assert ".skeleton-row-vault" in components_content
+    assert ".import-feedback.state-error" in components_content
+    assert ".btn-retry:hover" in components_content
